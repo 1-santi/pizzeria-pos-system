@@ -8,6 +8,13 @@ from typing import List, Optional
 
 
 @dataclass
+class Category:
+    """Representa una categoría de productos (Pizza, Empanadas, Papas, etc.)."""
+    name: str
+    id: Optional[int] = None
+
+
+@dataclass
 class Product:
     """Representa un producto del menú (pizza, papas, empanada)."""
     name: str

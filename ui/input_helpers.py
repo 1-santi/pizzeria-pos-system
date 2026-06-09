@@ -24,11 +24,12 @@ def parse_quantity_query(query_input: str) -> Tuple[int, str]:
 
 
 def search_product(query: str, products: List[Product]) -> List[Product]:
-    """Busca productos por índice numérico o texto parcial en el nombre."""
+    """Busca productos por ID de base de datos o texto parcial en el nombre."""
     if query.isdigit():
-        idx = int(query) - 1
-        if 0 <= idx < len(products):
-            return [products[idx]]
+        target_id = int(query)
+        for p in products:
+            if p.id == target_id:
+                return [p]
         return []
     return [p for p in products if query.lower() in p.name.lower()]
 
@@ -77,9 +78,9 @@ def handle_half_and_half(products: List[Product]) -> Optional[dict]:
     final_name = f"1/2 {sabor1.name} / 1/2 {sabor2.name}"
 
     print("-" * 40)
-    print(f"Resumen Mitad y Mitad:")
+    print(f"Resumen:")
     print(f"Items: {final_name}")
-    print(f"Precio (el más caro): ${final_price}")
+    print(f"Precio: ${final_price}")
 
     confirm = input("¿Confirmar esta mitad y mitad? ([s]/n): ").lower().strip()
     if confirm == 's' or confirm == '':

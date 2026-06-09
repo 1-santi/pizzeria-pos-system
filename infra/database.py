@@ -8,7 +8,7 @@ import datetime
 from typing import List, Optional
 
 from config import DATABASE_FILE
-from domain.models import Product, Order, OrderItem
+from domain.models import Product, Order, OrderItem, Category
 
 
 class Database:
@@ -29,11 +29,17 @@ class Database:
         conn = self._get_connection()
         try:
             conn.executescript("""
+                CREATE TABLE IF NOT EXISTS categories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE
+                );
+
                 CREATE TABLE IF NOT EXISTS products (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
                     price INTEGER NOT NULL,
-                    category TEXT NOT NULL DEFAULT 'Pizza'
+                    category TEXT NOT NULL DEFAULT 'Pizza',
+                    FOREIGN KEY (category) REFERENCES categories(name) ON UPDATE CASCADE
                 );
 
                 CREATE TABLE IF NOT EXISTS orders (
@@ -63,6 +69,27 @@ class Database:
                     name TEXT NOT NULL UNIQUE
                 );
             """)
+            
+            # Seed default categories if empty
+            cursor = conn.execute("SELECT COUNT(*) FROM categories")
+            if cursor.fetchone()[0] == 0:
+                defaults = {"Pizza", "Empanadas", "Papas"}
+                
+                # Also collect any existing categories from products table to avoid foreign key issues
+                try:
+                    cursor = conn.execute("SELECT DISTINCT category FROM products")
+                    for row in cursor.fetchall():
+                        if row["category"]:
+                            defaults.add(row["category"])
+                except sqlite3.OperationalError:
+                    # Products table might not exist yet
+                    pass
+                
+                conn.executemany(
+                    "INSERT INTO categories (name) VALUES (?)",
+                    [(c,) for c in sorted(defaults)]
+                )
+            
             conn.commit()
         finally:
             conn.close()
@@ -267,5 +294,76 @@ class Database:
             conn.execute("DELETE FROM cadetes WHERE name=?", (name,))
             conn.commit()
             return True
+        finally:
+            conn.close()
+
+    # =========================================================
+    # CATEGORIAS
+    # =========================================================
+
+    def get_categories(self) -> List[Category]:
+        """Retorna la lista de categorías registradas en el sistema."""
+        conn = self._get_connection()
+        try:
+            rows = conn.execute("SELECT id, name FROM categories ORDER BY name").fetchall()
+            return [Category(id=r["id"], name=r["name"]) for r in rows]
+        finally:
+            conn.close()
+
+    def add_category(self, name: str) -> bool:
+        """Agrega una categoría. Retorna False si ya existe."""
+        conn = self._get_connection()
+        try:
+            conn.execute("INSERT INTO categories (name) VALUES (?)", (name,))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+        finally:
+            conn.close()
+
+
+    def update_category(self, category_id: int, new_name: str) -> bool:
+        """Actualiza el nombre de una categoría y todos los productos asociados."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            # Primero, obtener el nombre anterior de la categoría
+            row = conn.execute("SELECT name FROM categories WHERE id = ?", (category_id,)).fetchone()
+            if not row:
+                return False
+            old_name = row["name"]
+
+            # Actualizar en base de datos. Usamos una transacción explícita sin foreign_keys para
+            # evitar conflictos durante el cambio manual cruzado.
+            conn.execute("BEGIN TRANSACTION")
+            conn.execute("UPDATE products SET category = ? WHERE category = ?", (new_name, old_name))
+            conn.execute("UPDATE categories SET name = ? WHERE id = ?", (new_name, category_id))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
+    def remove_category(self, category_id: int) -> bool:
+        """Elimina una categoría por su ID."""
+        conn = self._get_connection()
+        try:
+            conn.execute("DELETE FROM categories WHERE id = ?", (category_id,))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+        finally:
+            conn.close()
+
+    def category_has_products(self, category_name: str) -> bool:
+        """Verifica si una categoría tiene productos asociados."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute("SELECT COUNT(*) FROM products WHERE category = ?", (category_name,))
+            return cursor.fetchone()[0] > 0
         finally:
             conn.close()

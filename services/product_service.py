@@ -1,7 +1,6 @@
 """Servicio de productos - CRUD del menú."""
 from domain.models import Product
 from infra.database import Database
-from config import PRODUCT_CATEGORIES
 
 
 class ProductService:
@@ -12,7 +11,7 @@ class ProductService:
         return self.db.get_menu()
 
     def get_categories(self):
-        return list(PRODUCT_CATEGORIES)
+        return [c.name for c in self.db.get_categories()]
 
     def add_product(self, name, price, category="Pizza"):
         product = Product(name=name[:30], price=price, category=category)

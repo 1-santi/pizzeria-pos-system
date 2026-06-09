@@ -34,14 +34,13 @@ def show_menu(products):
     for item in products:
         categories[item.category].append(item)
 
-    item_id = 1
     for category in sorted(categories.keys()):
         print(f"\n=== {category.upper()} ===")
         print(f"{'ID':<4} {'Nombre':<25} {'Precio':<10}")
         print("-" * 45)
         for product in categories[category]:
-            print(f"{item_id:<4} {product.name:<25} ${product.price:<9}")
-            item_id += 1
+            display_id = product.id if product.id is not None else ""
+            print(f"{display_id:<4} {product.name:<25} ${product.price:<9}")
         print("-" * 45)
 
 

@@ -15,7 +15,7 @@ from infra import printer
 # MENÚ PRINCIPAL
 # =================================================================
 
-def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc):
+def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc):
     """Punto de entrada del sistema. Menú principal."""
     while True:
         clear_screen()
@@ -31,12 +31,12 @@ def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc):
             clear_screen()
             print_header()
             show_menu(product_svc.get_menu())
-            input("\nPresione Enter para volver...")
+            input("\nEnter para volver...")
         elif option == '2' or option == '':
             clear_screen()
             take_order(order_svc, product_svc, cadete_svc)
         elif option == '3':
-            admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc)
+            admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc)
         elif option == '4':
             print("Saliendo del sistema...")
             break
@@ -60,7 +60,7 @@ def take_order(order_svc, product_svc, cadete_svc):
 
     # Datos del cliente
     while True:
-        customer_name = input("Nombre del cliente (Obligatorio): ").strip()
+        customer_name = input("Nombre del cliente: ").strip()
         if customer_name:
             break
         print("El nombre es obligatorio.")
@@ -144,7 +144,7 @@ def take_order(order_svc, product_svc, cadete_svc):
 
     # Finalizar pedido
     if order_items:
-        observation = input("\nObservaciones (Enter si no hay): ").strip()
+        observation = input("\nObservaciones: ").strip()
 
         # Selección de cadete
         cadete_name = ""
@@ -152,7 +152,7 @@ def take_order(order_svc, product_svc, cadete_svc):
             cadetes = cadete_svc.get_cadetes()
             if cadetes:
                 while not cadete_name:
-                    print("\nSeleccione Cadete (Obligatorio para envíos):")
+                    print("\nSeleccione Cadete:")
                     for i, c in enumerate(cadetes, 1):
                         print(f"{i}. {c}")
                     c_choice = input("Seleccione #: ").strip()
@@ -166,8 +166,8 @@ def take_order(order_svc, product_svc, cadete_svc):
 
         # Medio de pago
         print("\nMedio de Pago:")
-        print("1. Efectivo (EF)")
-        print("2. Online (ONL)")
+        print("1. Efectivo")
+        print("2. Online")
         p_choice = input("Seleccione (1/2) [1]: ").strip()
         payment_method = "Online" if p_choice == "2" else "Efectivo"
 
@@ -204,11 +204,11 @@ def take_order(order_svc, product_svc, cadete_svc):
 # ADMINISTRACIÓN
 # =================================================================
 
-def admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc):
+def admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc):
     while True:
         clear_screen()
         print("\n--- ADMINISTRACION ---")
-        print("1. GESTION (Productos y Cadetes)")
+        print("1. GESTION (Productos, Cadetes y Categorías)")
         print("2. REPORTES (Historial, Liquidación y Fiscal)")
         print("3. EXPORTAR A EXCEL (CSV)")
         print("4. Volver")
@@ -216,7 +216,7 @@ def admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc):
         op = input("\nSeleccione opcion: ").strip()
 
         if op == '1':
-            management_menu(product_svc, cadete_svc)
+            management_menu(product_svc, cadete_svc, category_svc)
         elif op == '2':
             reports_menu(order_svc, cadete_svc, report_svc)
         elif op == '3':
@@ -225,13 +225,14 @@ def admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc):
             break
 
 
-def management_menu(product_svc, cadete_svc):
+def management_menu(product_svc, cadete_svc, category_svc):
     while True:
         clear_screen()
         print("\n--- GESTION DE NEGOCIO ---")
-        print("1. Productos (Menú y Precios)")
-        print("2. Cadetes (Repartidores)")
-        print("3. Volver")
+        print("1. Productos")
+        print("2. Cadetes")
+        print("3. Categorías")
+        print("4. Volver")
 
         op = input("\nSeleccione opcion: ").strip()
         if op == '1':
@@ -239,6 +240,8 @@ def management_menu(product_svc, cadete_svc):
         elif op == '2':
             cadetes_menu(cadete_svc)
         elif op == '3':
+            categories_menu(category_svc)
+        elif op == '4':
             break
 
 
@@ -300,9 +303,11 @@ def products_menu(product_svc):
 
             target = None
             if query.isdigit():
-                idx = int(query) - 1
-                if 0 <= idx < len(products):
-                    target = products[idx]
+                target_id = int(query)
+                for p in products:
+                    if p.id == target_id:
+                        target = p
+                        break
             else:
                 for p in products:
                     if p.name.lower() == query.lower():
@@ -352,9 +357,11 @@ def products_menu(product_svc):
 
             target = None
             if query.isdigit():
-                idx = int(query) - 1
-                if 0 <= idx < len(products):
-                    target = products[idx]
+                target_id = int(query)
+                for p in products:
+                    if p.id == target_id:
+                        target = p
+                        break
             else:
                 for p in products:
                     if p.name.lower() == query.lower():
@@ -368,6 +375,92 @@ def products_menu(product_svc):
                 print("No encontrado.")
             time.sleep(1)
 
+        elif op == '4':
+            break
+
+
+# =================================================================
+# GESTIÓN DE CATEGORÍAS
+# =================================================================
+
+def categories_menu(category_svc):
+    while True:
+        clear_screen()
+        print("\n--- GESTION DE CATEGORIAS ---")
+        categories = category_svc.get_categories()
+        if not categories:
+            print("No hay categorías registradas.")
+        else:
+            print(f"{'ID':<5} {'Nombre':<20}")
+            print("-" * 25)
+            for cat in categories:
+                print(f"{cat.id:<5} {cat.name:<20}")
+            print("-" * 25)
+
+        print("\n1. Agregar Categoría")
+        print("2. Renombrar Categoría")
+        print("3. Eliminar Categoría")
+        print("4. Volver")
+
+        op = input("Seleccione opcion: ").strip()
+        if op == '1':
+            name = input("Nombre de la nueva categoría: ").strip()
+            if name:
+                if category_svc.add_category(name):
+                    print("Categoría agregada.")
+                else:
+                    print("Error: La categoría ya existe o es inválida.")
+            time.sleep(1)
+        elif op == '2':
+            if not categories:
+                print("No hay categorías para renombrar.")
+                time.sleep(1)
+                continue
+            sel = input("Ingrese ID de la categoría a renombrar: ").strip()
+            if sel.isdigit():
+                cat_id = int(sel)
+                target = None
+                for cat in categories:
+                    if cat.id == cat_id:
+                        target = cat
+                        break
+                if target:
+                    new_name = input(f"Nuevo nombre para '{target.name}': ").strip()
+                    if new_name:
+                        if category_svc.rename_category(cat_id, new_name):
+                            print("Categoría renombrada con éxito.")
+                        else:
+                            print("Error al renombrar. Tal vez el nombre ya existe.")
+                    else:
+                        print("Nombre inválido.")
+                else:
+                    print("Categoría no encontrada.")
+            time.sleep(1)
+        elif op == '3':
+            if not categories:
+                print("No hay categorías para eliminar.")
+                time.sleep(1)
+                continue
+            sel = input("Ingrese ID de la categoría a eliminar: ").strip()
+            if sel.isdigit():
+                cat_id = int(sel)
+                target = None
+                for cat in categories:
+                    if cat.id == cat_id:
+                        target = cat
+                        break
+                if target:
+                    if category_svc.category_has_products(target.name):
+                        print(f"No se puede eliminar la categoría '{target.name}' porque tiene productos asociados.")
+                        print("Por favor, edite o elimine esos productos primero.")
+                    else:
+                        confirm = input(f"¿Está seguro de que desea eliminar la categoría '{target.name}'? (s/N): ").strip().lower()
+                        if confirm == 's':
+                            category_svc.delete_category(cat_id)
+                            print("Categoría eliminada.")
+                else:
+                    print("Categoría no encontrada.")
+            time.sleep(1)
         elif op == '4':
             break
 
