@@ -19,7 +19,7 @@ class ExportService:
 
         headers = [
             "ID", "Fecha", "Cliente", "Telefono", "Direccion",
-            "Tipo Entrega", "Envio($)", "Cadete", "Metodo Pago",
+            "Zona", "Tipo Entrega", "Envio($)", "Cadete", "Metodo Pago",
             "Total($)", "Items",
         ]
 
@@ -32,7 +32,7 @@ class ExportService:
                     items_str = ", ".join(item.name for item in o.items)
                     writer.writerow([
                         o.id, o.date, o.customer, o.phone, o.address,
-                        o.delivery_type, o.delivery_fee, o.cadete,
+                        o.zone_name or "", o.delivery_type, o.delivery_fee, o.cadete,
                         o.payment_method, o.total, items_str,
                     ])
             return True
