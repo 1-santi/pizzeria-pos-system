@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.csv
+*.txt
+!README.md
+!INSTRUCCIONES.md
+!LEEME.txt
+backups/

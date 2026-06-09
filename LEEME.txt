@@ -1,22 +1,50 @@
-# INSTRUCCIONES DEL SISTEMA LPM PIZZAS
+=====================================================
+   SISTEMA DE GESTION LPM PIZZAS (v2.0)
+   Instrucciones Rapidas
+=====================================================
 
-Este es un sistema de gestión de pedidos por consola diseñado para ser portátil y fácil de usar.
+REQUISITOS:
+- Windows 10 o 11
+- Python 3.7 o superior (descargar de python.org)
+  IMPORTANTE: Al instalar Python, marcar "Add python.exe to PATH"
 
-## Requisitos
-1. **Python 3.x**: Asegúrate de tener Python instalado en la computadora. Puedes descargarlo de [python.org](https://python.org).
-2. **Impresora**: El sistema utiliza la impresora predeterminada de Windows para imprimir los tickets.
+COMO INICIAR:
+1. Copiar toda la carpeta "proyecto de la pizzeria" a la PC
+2. Configurar el modo de impresion en "config.py" (ver abajo)
+3. Hacer doble clic en "run_pizzeria.bat"
 
-## Instalación y Uso
-1. Extrae el contenido del archivo ZIP en una carpeta.
-2. Haz doble clic en `run_pizzeria.bat` para iniciar el programa.
-3. El sistema cargará automáticamente el menú desde `data.json`.
+CONFIGURAR IMPRESION (config.py):
+- Abrir "config.py" con el Bloc de notas
+- Buscar la linea OUTPUT_MODE y cambiarla:
+  * OUTPUT_MODE = 'POS80'  --> Impresora termica real (en el local)
+  * OUTPUT_MODE = 'PDF'    --> Genera PDF (para probar sin impresora)
+  * OUTPUT_MODE = 'DEBUG'  --> Solo muestra en pantalla
 
-## Archivos Importantes
-- `main.py`: Lógica principal del programa.
-- `store.py`: Manejo de datos y persistencia.
-- `printer.py`: Formateo y envío a impresión.
-- `data.json`: Contiene el menú de productos y el historial de pedidos.
-- `run_pizzeria.bat`: Acceso directo para iniciar el programa sin usar la terminal.
+CONFIGURAR IMPRESORA TERMICA:
+- Ir a Configuracion > Dispositivos > Impresoras
+- Clic derecho en la impresora > Propiedades
+- Pestana "Compartir" > Activar "Compartir esta impresora"
+- Nombre del recurso: POS80 (exacto, en mayusculas)
 
-## Notas de Impresión
-El sistema está configurado para papel de **80mm**. Si necesitas ajustar el ancho, puedes editar el archivo `printer.py` y cambiar la variable `WIDTH`.
+ARCHIVOS IMPORTANTES:
+- main.py          : Punto de entrada del programa
+- config.py        : Configuracion del sistema (EDITAR ACA)
+- domain/          : Modelos de datos (Product, Order, etc.)
+- services/        : Logica de negocio (pedidos, reportes, etc.)
+- ui/              : Interfaz de consola (menus, pantallas)
+- infra/           : Base de datos SQLite e impresora
+- pizzeria.db      : Base de datos (se crea automaticamente)
+- run_pizzeria.bat : Acceso directo para iniciar el programa
+
+NOTAS:
+- Los datos se guardan en "pizzeria.db" (base de datos SQLite)
+- NO borrar este archivo, ahi esta todo el historial
+- El sistema NO necesita internet para funcionar
+- Para mas informacion, ver README.md
+
+=====================================================
+  Si algo no funciona, revisar:
+  1. Que Python este instalado (escribir "python --version" en cmd)
+  2. Que la impresora este compartida como "POS80"
+  3. Que OUTPUT_MODE este bien configurado en config.py
+=====================================================
