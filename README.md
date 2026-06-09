@@ -60,15 +60,15 @@ El sistema está pensado para ser **simple de usar** — no necesitás ser progr
 | Módulo | Descripción |
 |--------|-------------|
 | 🍕 **Menú de Productos** | Gestión de productos y precios con categorías dinámicas y alineadas por ID |
-| 📁 **Categorías** | CRUD de categorías (crear, renombrar, eliminar) persistidas en la DB |
-| 👥 **Clientes y Direcciones** | Base de datos de clientes, múltiples direcciones con etiquetas y zonas autocompletadas (Fase 2) |
-| 🗺️ **Zonas de Reparto** | Configuración de zonas de reparto y asignación a direcciones y pedidos (Fase 1) |
+| 📁 **Categorías** | CRUD de categorías (crear, renombrar, eliminar) dinámicas persistidas en la DB |
+| 👥 **Clientes y Direcciones** | Base de datos de clientes, múltiples direcciones con etiquetas y asignación a zonas de reparto |
+| 🗺️ **Zonas de Reparto** | Configuración de zonas de reparto y asignación a direcciones y pedidos |
 | 📝 **Toma de Pedidos** | Búsqueda inteligente híbrida (por nombre, teléfono o ID real), soporte para `2 x muzza`, cantidades decimales (ej. `0.5 x docena`), pizzas mitad y mitad solo para pizzas grandes |
 | 🛵 **Cadetes** | Alta/baja de repartidores, asignación a pedidos con envío |
 | 💵 **Medios de Pago** | Registro de Efectivo (EF) y Online (ONL) por separado |
 | 🖨️ **Impresión Doble** | **Comanda Cocina** con zona grande + **Ticket Control** (detalle completo) con corte automático |
 | 📊 **Liquidación Diaria** | Cálculo automático: base de cadetes + comisiones de envío |
-| 📈 **Reporte Fiscal** | Resumen de ventas por medio de pago y desglose por zonas (Listo para ARCA) (Fase 3) |
+| 📈 **Reporte Fiscal** | Resumen de ventas por medio de pago y desglose por zonas (Listo para ARCA) |
 | 📂 **Exportar a Excel** | Genera archivos `.csv` compatibles con Excel incluyendo columna de Zonas |
 | 🔁 **Historial** | Búsqueda por cliente, cadete, medio de pago, zona de reparto o ID — Reimpresión de tickets |
 
@@ -729,12 +729,16 @@ Menú principal → 3 (Administrar) → 1 (Gestión) → 1 (Productos) → 2 (Ed
 
 ### 🟡 ¿Puedo agregar un nuevo tipo de producto (no solo pizza)?
 
-Sí. El sistema soporta 3 categorías:
+Sí, podés agregar todos los que quieras. El sistema soporta categorías dinámicas persistidas en la base de datos. Por defecto viene con:
 - 🍕 **Pizza**
 - 🍟 **Papas**
 - 🥟 **Empanadas**
 
-Al agregar un producto, el sistema te pregunta en qué categoría ponerlo.
+Pero podés crear, renombrar o eliminar categorías libremente desde el menú:
+```
+Menú principal → 3 (Administrar) → 1 (Gestión) → 3 (Categorías)
+```
+Al agregar un producto, el sistema te preguntará en cuál de las categorías activas deseas colocarlo.
 
 ---
 
