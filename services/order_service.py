@@ -12,7 +12,7 @@ class OrderService:
 
     def create_order(self, customer, phone, address, observation,
                      delivery_type, delivery_fee, cadete, payment_method,
-                     items: list) -> Order:
+                     items: list, zone_id=None, zone_name="") -> Order:
         """Crea un pedido completo, lo persiste e imprime."""
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -25,6 +25,7 @@ class OrderService:
             delivery_fee=delivery_fee, cadete=cadete,
             payment_method=payment_method, items=order_items,
             total=total, date=timestamp,
+            zone_id=zone_id, zone_name=zone_name,
         )
 
         order.id = self.db.add_order(order)

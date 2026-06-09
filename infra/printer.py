@@ -135,9 +135,18 @@ def print_kitchen_order(order_data):
     delivery = _get_attr(order_data, 'delivery_type', 'N/A')
     customer = _get_attr(order_data, 'customer')
     obs = _get_attr(order_data, 'observation', '')
+    zone_name = _get_attr(order_data, 'zone_name', '')
 
     lines.append(center_text("=== COMANDA COCINA ==="))
-    lines.append(center_text(f"PEDIDO #{order_id}"))
+
+    # Zona al lado del número de pedido en fuente grande
+    BIG_WIDTH = 24  # Ancho efectivo con fuente grande (la mitad del normal)
+    if zone_name:
+        header_text = f"#{order_id} | {zone_name.upper()}"
+    else:
+        header_text = f"PEDIDO #{order_id}"
+    lines.append(f"{BIG_FONT_ON}{header_text.center(BIG_WIDTH)}{BIG_FONT_OFF}")
+
     lines.append("=" * WIDTH)
 
     lines.append(center_text(f"*** {delivery.upper()} ***"))
@@ -145,8 +154,6 @@ def print_kitchen_order(order_data):
 
     item_tuples = _get_items(order_data)
     counts = Counter(item_tuples)
-
-    BIG_WIDTH = 24  # Ancho efectivo con fuente grande (la mitad del normal)
 
     for (name, price), qty in counts.items():
         name_display = name.upper()
@@ -190,6 +197,7 @@ def print_control_ticket(order_data):
     obs = _get_attr(order_data, 'observation', '')
     delivery_fee = _get_attr(order_data, 'delivery_fee', 0)
     total = _get_attr(order_data, 'total', 0)
+    zone_name = _get_attr(order_data, 'zone_name', '')
 
     lines.append(center_text("LPM PIZZAS"))
     lines.append(center_text("M.David 4304"))
@@ -203,6 +211,8 @@ def print_control_ticket(order_data):
         lines.append(f"Tel: {phone}")
     if address:
         lines.append(f"Dir: {address}")
+    if zone_name:
+        lines.append(f"Zona: {zone_name}")
 
     if cadete:
         lines.append(f"Tipo: {delivery} ({cadete})")

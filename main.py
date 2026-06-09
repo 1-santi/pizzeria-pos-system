@@ -11,6 +11,7 @@ from services.cadete_service import CadeteService
 from services.report_service import ReportService
 from services.export_service import ExportService
 from services.category_service import CategoryService
+from services.zone_service import ZoneService
 from ui.menus import main_menu
 
 
@@ -25,10 +26,12 @@ def main():
     report_svc = ReportService(db)
     export_svc = ExportService(db)
     category_svc = CategoryService(db)
+    zone_svc = ZoneService(db)
 
     # Iniciar interfaz de consola
-    main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc)
+    main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc, zone_svc)
 
 
 if __name__ == "__main__":
     main()
+

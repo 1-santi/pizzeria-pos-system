@@ -8,7 +8,7 @@ import datetime
 from typing import List, Optional
 
 from config import DATABASE_FILE
-from domain.models import Product, Order, OrderItem, Category
+from domain.models import Product, Order, OrderItem, Category, Zone
 
 
 class Database:
@@ -34,6 +34,12 @@ class Database:
                     name TEXT NOT NULL UNIQUE
                 );
 
+                CREATE TABLE IF NOT EXISTS zones (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    description TEXT DEFAULT ''
+                );
+
                 CREATE TABLE IF NOT EXISTS products (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
@@ -53,7 +59,9 @@ class Database:
                     delivery_fee INTEGER DEFAULT 0,
                     cadete TEXT DEFAULT '',
                     payment_method TEXT DEFAULT 'Efectivo',
-                    total INTEGER NOT NULL
+                    total INTEGER NOT NULL,
+                    zone_id INTEGER,
+                    zone_name TEXT DEFAULT ''
                 );
 
                 CREATE TABLE IF NOT EXISTS order_items (
@@ -68,7 +76,20 @@ class Database:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL UNIQUE
                 );
+
+                CREATE INDEX IF NOT EXISTS idx_orders_zone ON orders(zone_id);
             """)
+
+            # Migración segura: agregar columnas zone_id y zone_name a orders si no existen
+            # (para bases de datos creadas antes de esta versión)
+            try:
+                conn.execute("ALTER TABLE orders ADD COLUMN zone_id INTEGER")
+            except sqlite3.OperationalError:
+                pass  # columna ya existe
+            try:
+                conn.execute("ALTER TABLE orders ADD COLUMN zone_name TEXT DEFAULT ''")
+            except sqlite3.OperationalError:
+                pass  # columna ya existe
             
             # Seed default categories if empty
             cursor = conn.execute("SELECT COUNT(*) FROM categories")
@@ -82,12 +103,24 @@ class Database:
                         if row["category"]:
                             defaults.add(row["category"])
                 except sqlite3.OperationalError:
-                    # Products table might not exist yet
                     pass
                 
                 conn.executemany(
                     "INSERT INTO categories (name) VALUES (?)",
                     [(c,) for c in sorted(defaults)]
+                )
+
+            # Seed default zones if empty
+            cursor = conn.execute("SELECT COUNT(*) FROM zones")
+            if cursor.fetchone()[0] == 0:
+                default_zones = [
+                    ("Zona 1", ""),
+                    ("Zona 2", ""),
+                    ("Zona 3", ""),
+                ]
+                conn.executemany(
+                    "INSERT INTO zones (name, description) VALUES (?, ?)",
+                    default_zones
                 )
             
             conn.commit()
@@ -165,12 +198,14 @@ class Database:
             cursor = conn.execute(
                 """INSERT INTO orders 
                    (date, customer, phone, address, observation,
-                    delivery_type, delivery_fee, cadete, payment_method, total)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    delivery_type, delivery_fee, cadete, payment_method, total,
+                    zone_id, zone_name)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     order.date, order.customer, order.phone, order.address,
                     order.observation, order.delivery_type, order.delivery_fee,
                     order.cadete, order.payment_method, order.total,
+                    order.zone_id, order.zone_name,
                 ),
             )
             order_id = cursor.lastrowid
@@ -194,6 +229,7 @@ class Database:
         date_filter: str = None,
         cadete_filter: str = None,
         payment_filter: str = None,
+        zone_filter: int = None,
     ) -> List[Order]:
         """Retorna pedidos con filtros opcionales."""
         conn = self._get_connection()
@@ -210,6 +246,9 @@ class Database:
             if payment_filter:
                 query += " AND payment_method = ?"
                 params.append(payment_filter)
+            if zone_filter is not None:
+                query += " AND zone_id = ?"
+                params.append(zone_filter)
 
             query += " ORDER BY id"
             rows = conn.execute(query, params).fetchall()
@@ -230,6 +269,7 @@ class Database:
                         delivery_fee=r["delivery_fee"], cadete=r["cadete"],
                         payment_method=r["payment_method"], items=items,
                         total=r["total"],
+                        zone_id=r["zone_id"], zone_name=r["zone_name"] or "",
                     )
                 )
 
@@ -258,6 +298,7 @@ class Database:
                 delivery_fee=r["delivery_fee"], cadete=r["cadete"],
                 payment_method=r["payment_method"], items=items,
                 total=r["total"],
+                zone_id=r["zone_id"], zone_name=r["zone_name"] or "",
             )
         finally:
             conn.close()
@@ -367,3 +408,65 @@ class Database:
             return cursor.fetchone()[0] > 0
         finally:
             conn.close()
+
+    # =========================================================
+    # ZONAS DE REPARTO
+    # =========================================================
+
+    def get_zones(self) -> List[Zone]:
+        """Retorna la lista de zonas de reparto."""
+        conn = self._get_connection()
+        try:
+            rows = conn.execute("SELECT id, name, description FROM zones ORDER BY name").fetchall()
+            return [Zone(id=r["id"], name=r["name"], description=r["description"] or "") for r in rows]
+        finally:
+            conn.close()
+
+    def add_zone(self, name: str, description: str = "") -> bool:
+        """Agrega una zona. Retorna False si ya existe."""
+        conn = self._get_connection()
+        try:
+            conn.execute("INSERT INTO zones (name, description) VALUES (?, ?)", (name, description))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+        finally:
+            conn.close()
+
+    def update_zone(self, zone_id: int, name: str, description: str) -> bool:
+        """Actualiza nombre y descripción de una zona."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                "UPDATE zones SET name = ?, description = ? WHERE id = ?",
+                (name, description, zone_id),
+            )
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+        finally:
+            conn.close()
+
+    def remove_zone(self, zone_id: int) -> bool:
+        """Elimina una zona por su ID."""
+        conn = self._get_connection()
+        try:
+            conn.execute("DELETE FROM zones WHERE id = ?", (zone_id,))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+        finally:
+            conn.close()
+
+    def zone_has_orders(self, zone_id: int) -> bool:
+        """Verifica si una zona tiene pedidos asociados."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute("SELECT COUNT(*) FROM orders WHERE zone_id = ?", (zone_id,))
+            return cursor.fetchone()[0] > 0
+        finally:
+            conn.close()
+

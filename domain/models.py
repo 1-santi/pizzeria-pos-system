@@ -15,6 +15,14 @@ class Category:
 
 
 @dataclass
+class Zone:
+    """Representa una zona de reparto (ej: Zona 1 — San Benito y Colonia)."""
+    name: str
+    description: str = ""
+    id: Optional[int] = None
+
+
+@dataclass
 class Product:
     """Representa un producto del menú (pizza, papas, empanada)."""
     name: str
@@ -46,3 +54,6 @@ class Order:
     delivery_fee: int = 0
     cadete: str = ""
     payment_method: str = "Efectivo"
+    zone_id: Optional[int] = None
+    zone_name: str = ""
+

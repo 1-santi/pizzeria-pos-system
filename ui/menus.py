@@ -15,7 +15,7 @@ from infra import printer
 # MENÚ PRINCIPAL
 # =================================================================
 
-def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc):
+def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc, zone_svc):
     """Punto de entrada del sistema. Menú principal."""
     while True:
         clear_screen()
@@ -34,9 +34,9 @@ def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, catego
             input("\nEnter para volver...")
         elif option == '2' or option == '':
             clear_screen()
-            take_order(order_svc, product_svc, cadete_svc)
+            take_order(order_svc, product_svc, cadete_svc, zone_svc)
         elif option == '3':
-            admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc)
+            admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc, zone_svc)
         elif option == '4':
             print("Saliendo del sistema...")
             break
@@ -49,7 +49,7 @@ def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, catego
 # TOMA DE PEDIDOS
 # =================================================================
 
-def take_order(order_svc, product_svc, cadete_svc):
+def take_order(order_svc, product_svc, cadete_svc, zone_svc):
     """Flujo completo de toma de pedidos."""
     print("\n--- TOMAR PEDIDO ---")
     products = product_svc.get_menu()
@@ -76,6 +76,8 @@ def take_order(order_svc, product_svc, cadete_svc):
     delivery_type = "Envío" if (delivery_choice == "1" or delivery_choice == "") else "Take Away"
 
     delivery_fee = 0
+    zone_id = None
+    zone_name = ""
     if delivery_type == "Envío":
         fee_input = input("Precio del envío [0]: ").strip()
         if fee_input:
@@ -84,13 +86,27 @@ def take_order(order_svc, product_svc, cadete_svc):
             except ValueError:
                 delivery_fee = 0
 
+        # Selección de zona de reparto
+        zones = zone_svc.get_zones()
+        if zones:
+            print("\nZona de reparto:")
+            for i, z in enumerate(zones, 1):
+                desc = f" ({z.description})" if z.description else ""
+                print(f"  {i}. {z.name}{desc}")
+            z_choice = input(f"Seleccione zona (1-{len(zones)}) [Enter = sin zona]: ").strip()
+            if z_choice.isdigit() and 1 <= int(z_choice) <= len(zones):
+                selected_zone = zones[int(z_choice) - 1]
+                zone_id = selected_zone.id
+                zone_name = selected_zone.name
+
     # Selección de productos
     order_items = []
     total_items_price = 0
 
     while True:
         print(f"\nPedido de: {customer_name}")
-        print(f"Items: {len(order_items)} | Subtotal: ${total_items_price}")
+        zone_label = f" | {zone_name}" if zone_name else ""
+        print(f"Items: {len(order_items)} | Subtotal: ${total_items_price}{zone_label}")
         print("Opciones: 'menu', 'fin', o producto (ej: 'muzza', '2 x napo')")
 
         query_input = input("Producto: ").strip()
@@ -179,10 +195,13 @@ def take_order(order_svc, product_svc, cadete_svc):
             observation=observation, delivery_type=delivery_type,
             delivery_fee=delivery_fee, cadete=cadete_name,
             payment_method=payment_method, items=order_items,
+            zone_id=zone_id, zone_name=zone_name,
         )
 
         print(f"\nPEDIDO #{order.id} CREADO CON EXITO!")
         print(f"Cliente: {customer_name}")
+        if zone_name:
+            print(f"Zona: {zone_name}")
         if delivery_fee > 0:
             print(f"Subtotal: ${total_items_price}")
             print(f"Envío: ${delivery_fee}")
@@ -204,11 +223,11 @@ def take_order(order_svc, product_svc, cadete_svc):
 # ADMINISTRACIÓN
 # =================================================================
 
-def admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc):
+def admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc, zone_svc):
     while True:
         clear_screen()
         print("\n--- ADMINISTRACION ---")
-        print("1. GESTION (Productos, Cadetes y Categorías)")
+        print("1. GESTION (Productos, Cadetes, Categorías y Zonas)")
         print("2. REPORTES (Historial, Liquidación y Fiscal)")
         print("3. EXPORTAR A EXCEL (CSV)")
         print("4. Volver")
@@ -216,7 +235,7 @@ def admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, categ
         op = input("\nSeleccione opcion: ").strip()
 
         if op == '1':
-            management_menu(product_svc, cadete_svc, category_svc)
+            management_menu(product_svc, cadete_svc, category_svc, zone_svc)
         elif op == '2':
             reports_menu(order_svc, cadete_svc, report_svc)
         elif op == '3':
@@ -225,14 +244,15 @@ def admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, categ
             break
 
 
-def management_menu(product_svc, cadete_svc, category_svc):
+def management_menu(product_svc, cadete_svc, category_svc, zone_svc):
     while True:
         clear_screen()
         print("\n--- GESTION DE NEGOCIO ---")
         print("1. Productos")
         print("2. Cadetes")
         print("3. Categorías")
-        print("4. Volver")
+        print("4. Zonas de Reparto")
+        print("5. Volver")
 
         op = input("\nSeleccione opcion: ").strip()
         if op == '1':
@@ -242,6 +262,8 @@ def management_menu(product_svc, cadete_svc, category_svc):
         elif op == '3':
             categories_menu(category_svc)
         elif op == '4':
+            zones_menu(zone_svc)
+        elif op == '5':
             break
 
 
@@ -460,6 +482,98 @@ def categories_menu(category_svc):
                             print("Categoría eliminada.")
                 else:
                     print("Categoría no encontrada.")
+            time.sleep(1)
+        elif op == '4':
+            break
+
+
+# =================================================================
+# GESTIÓN DE ZONAS DE REPARTO
+# =================================================================
+
+def zones_menu(zone_svc):
+    while True:
+        clear_screen()
+        print("\n--- GESTION DE ZONAS DE REPARTO ---")
+        zones = zone_svc.get_zones()
+        if not zones:
+            print("No hay zonas registradas.")
+        else:
+            print(f"{'ID':<5} {'Nombre':<20} {'Descripción'}")
+            print("-" * 50)
+            for z in zones:
+                print(f"{z.id:<5} {z.name:<20} {z.description}")
+            print("-" * 50)
+
+        print("\n1. Agregar Zona")
+        print("2. Editar Zona")
+        print("3. Eliminar Zona")
+        print("4. Volver")
+
+        op = input("Seleccione opcion: ").strip()
+        if op == '1':
+            name = input("Nombre de la zona (ej: Zona 4): ").strip()
+            if name:
+                desc = input("Descripción (ej: San Benito hasta Colonia): ").strip()
+                if zone_svc.add_zone(name, desc):
+                    print("Zona agregada.")
+                else:
+                    print("Error: La zona ya existe o el nombre es inválido.")
+            time.sleep(1)
+        elif op == '2':
+            if not zones:
+                print("No hay zonas para editar.")
+                time.sleep(1)
+                continue
+            sel = input("Ingrese ID de la zona a editar: ").strip()
+            if sel.isdigit():
+                zone_id = int(sel)
+                target = None
+                for z in zones:
+                    if z.id == zone_id:
+                        target = z
+                        break
+                if target:
+                    new_name = input(f"Nuevo nombre [{target.name}]: ").strip() or target.name
+                    new_desc = input(f"Nueva descripción [{target.description}]: ").strip()
+                    if new_desc == "":
+                        new_desc = target.description
+                    if zone_svc.update_zone(zone_id, new_name, new_desc):
+                        print("Zona actualizada.")
+                    else:
+                        print("Error al actualizar. Tal vez el nombre ya existe.")
+                else:
+                    print("Zona no encontrada.")
+            time.sleep(1)
+        elif op == '3':
+            if not zones:
+                print("No hay zonas para eliminar.")
+                time.sleep(1)
+                continue
+            sel = input("Ingrese ID de la zona a eliminar: ").strip()
+            if sel.isdigit():
+                zone_id = int(sel)
+                target = None
+                for z in zones:
+                    if z.id == zone_id:
+                        target = z
+                        break
+                if target:
+                    if zone_svc.zone_has_orders(zone_id):
+                        print(f"[!] La zona '{target.name}' tiene pedidos asociados.")
+                        confirm = input("¿Eliminar de todos modos? Los pedidos conservarán el nombre (s/N): ").strip().lower()
+                        if confirm != 's':
+                            time.sleep(1)
+                            continue
+                    else:
+                        confirm = input(f"¿Eliminar la zona '{target.name}'? (s/N): ").strip().lower()
+                        if confirm != 's':
+                            time.sleep(1)
+                            continue
+                    zone_svc.delete_zone(zone_id)
+                    print("Zona eliminada.")
+                else:
+                    print("Zona no encontrada.")
             time.sleep(1)
         elif op == '4':
             break
