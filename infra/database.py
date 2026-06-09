@@ -96,7 +96,6 @@ class Database:
                     name TEXT NOT NULL UNIQUE
                 );
 
-                CREATE INDEX IF NOT EXISTS idx_orders_zone ON orders(zone_id);
                 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
                 CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name COLLATE NOCASE);
                 CREATE INDEX IF NOT EXISTS idx_addresses_cust ON customer_addresses(customer_id);
@@ -113,6 +112,12 @@ class Database:
                     conn.execute(col_sql)
                 except sqlite3.OperationalError:
                     pass  # columna ya existe
+
+            # Crear el índice de zona después de asegurar la columna
+            try:
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_zone ON orders(zone_id)")
+            except sqlite3.OperationalError:
+                pass
             
             # Seed default categories if empty
             cursor = conn.execute("SELECT COUNT(*) FROM categories")

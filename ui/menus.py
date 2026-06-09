@@ -239,10 +239,18 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc):
 
         # Agregar al carrito
         if selected_pizza:
-            for _ in range(quantity):
-                order_items.append({"name": selected_pizza.name, "price": selected_pizza.price})
-                total_items_price += selected_pizza.price
-            print(f"Agregado {quantity} items.")
+            if isinstance(quantity, float):
+                # Es una cantidad fraccionaria (ej: 0.5 x Docena)
+                item_price = int(selected_pizza.price * quantity)
+                item_name = f"{quantity} x {selected_pizza.name}"
+                order_items.append({"name": item_name, "price": item_price})
+                total_items_price += item_price
+                print(f"Agregado {quantity} x {selected_pizza.name} (${item_price}).")
+            else:
+                for _ in range(quantity):
+                    order_items.append({"name": selected_pizza.name, "price": selected_pizza.price})
+                    total_items_price += selected_pizza.price
+                print(f"Agregado {quantity} items.")
 
     # Finalizar pedido
     if order_items:

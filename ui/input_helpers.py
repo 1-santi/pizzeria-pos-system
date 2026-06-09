@@ -9,14 +9,18 @@ from domain.models import Product
 from domain.pricing import calculate_half_and_half_price
 
 
-def parse_quantity_query(query_input: str) -> Tuple[int, str]:
-    """Parsea inputs como '2xmuzza', '3 x napo', o 'fugazzeta'.
+def parse_quantity_query(query_input: str) -> Tuple[float, str]:
+    """Parsea inputs como '2xmuzza', '0.5 x docena saladas', o 'fugazzeta'.
     Retorna (cantidad, texto_de_búsqueda)."""
     query_input = query_input.strip()
-    match = re.match(r'^(\d+)\s*[xX]\s*(.*)$', query_input)
+    # Permitir números enteros o decimales (ej: 0.5, 1.5, 2)
+    match = re.match(r'^(\d+(?:\.\d+)?)\s*[xX]\s*(.*)$', query_input)
     if match:
-        quantity = int(match.group(1))
-        if quantity < 1:
+        try:
+            quantity = float(match.group(1))
+            if quantity.is_integer():
+                quantity = int(quantity)
+        except ValueError:
             quantity = 1
         query = match.group(2).strip()
         return quantity, query
@@ -60,16 +64,23 @@ def select_product(products: List[Product], prompt: str) -> Optional[Product]:
 
 
 def handle_half_and_half(products: List[Product]) -> Optional[dict]:
-    """Flujo interactivo para armar una pizza mitad y mitad."""
-    print("\n--- SELECCION DE MITADES ---")
+    """Flujo interactivo para armar una pizza mitad y mitad (solo pizzas grandes)."""
+    # Filtrar solo productos que sean de la categoría Pizza y tengan "grande" en el nombre
+    pizzas_grandes = [p for p in products if p.category.lower() == "pizza" and "grande" in p.name.lower()]
+
+    if not pizzas_grandes:
+        print("No hay pizzas grandes cargadas en el menú para armar mitades.")
+        return None
+
+    print("\n--- SELECCION DE MITADES (SOLO PIZZAS GRANDES) ---")
     print("Sabor 1:")
-    sabor1 = select_product(products, "Buscar primer sabor: ")
+    sabor1 = select_product(pizzas_grandes, "Buscar primer sabor grande: ")
     if not sabor1:
         return None
     print(f"Sabor 1: {sabor1.name} (${sabor1.price})")
 
     print("\nSabor 2:")
-    sabor2 = select_product(products, "Buscar segundo sabor: ")
+    sabor2 = select_product(pizzas_grandes, "Buscar segundo sabor grande: ")
     if not sabor2:
         return None
     print(f"Sabor 2: {sabor2.name} (${sabor2.price})")
