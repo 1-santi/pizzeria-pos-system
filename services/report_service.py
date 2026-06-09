@@ -46,7 +46,7 @@ class ReportService:
         return results
 
     def get_sales_summary(self, date_filter: str = None) -> Dict[str, Any]:
-        """Resumen fiscal: totales por medio de pago."""
+        """Resumen fiscal: totales por medio de pago y por zona de reparto."""
         if date_filter:
             orders = self.db.get_orders(date_filter=date_filter)
         else:
@@ -55,12 +55,19 @@ class ReportService:
         total_ef = sum(o.total for o in orders if o.payment_method == 'Efectivo')
         total_onl = sum(o.total for o in orders if o.payment_method == 'Online')
 
+        # Agrupar por zona
+        zones_summary = {}
+        for o in orders:
+            z_name = o.zone_name or "Sin Zona"
+            zones_summary[z_name] = zones_summary.get(z_name, 0) + o.total
+
         return {
             'total_efectivo': total_ef,
             'total_online': total_onl,
             'total_general': total_ef + total_onl,
             'orders': orders,
             'online_orders': [o for o in orders if o.payment_method == 'Online'],
+            'sales_by_zone': zones_summary,
         }
 
     def print_fiscal_report(self, period_label: str, summary: Dict[str, Any]):
@@ -74,6 +81,13 @@ class ReportService:
         report_lines.append("-" * printer.WIDTH)
         report_lines.append(printer.format_line("TOTAL GENERAL:", f"${summary['total_general']}"))
         report_lines.append("-" * printer.WIDTH)
+
+        if 'sales_by_zone' in summary and summary['sales_by_zone']:
+            report_lines.append("\n" + printer.center_text("VENTAS POR ZONA"))
+            for z_name, z_total in sorted(summary['sales_by_zone'].items()):
+                report_lines.append(printer.format_line(f"  {z_name}:", f"${z_total}"))
+            report_lines.append("-" * printer.WIDTH)
+
         report_lines.append("\n" + printer.center_text("Listado de Ventas Online:"))
 
         if summary['online_orders']:

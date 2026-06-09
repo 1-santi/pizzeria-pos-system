@@ -23,6 +23,28 @@ class Zone:
 
 
 @dataclass
+class CustomerAddress:
+    """Dirección de un cliente, opcionalmente vinculada a una zona."""
+    customer_id: int
+    address: str
+    label: str = "Casa"
+    zone_id: Optional[int] = None
+    zone_name: str = ""
+    is_default: bool = False
+    id: Optional[int] = None
+
+
+@dataclass
+class Customer:
+    """Cliente registrado en el sistema con historial."""
+    name: str
+    phone: str = ""
+    notes: str = ""
+    id: Optional[int] = None
+    addresses: List[CustomerAddress] = field(default_factory=list)
+
+
+@dataclass
 class Product:
     """Representa un producto del menú (pizza, papas, empanada)."""
     name: str
@@ -56,4 +78,6 @@ class Order:
     payment_method: str = "Efectivo"
     zone_id: Optional[int] = None
     zone_name: str = ""
+    customer_id: Optional[int] = None
+
 

@@ -15,7 +15,7 @@ from infra import printer
 # MENÚ PRINCIPAL
 # =================================================================
 
-def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc, zone_svc):
+def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc, zone_svc, customer_svc):
     """Punto de entrada del sistema. Menú principal."""
     while True:
         clear_screen()
@@ -34,9 +34,9 @@ def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, catego
             input("\nEnter para volver...")
         elif option == '2' or option == '':
             clear_screen()
-            take_order(order_svc, product_svc, cadete_svc, zone_svc)
+            take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc)
         elif option == '3':
-            admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc, zone_svc)
+            admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc, zone_svc, customer_svc)
         elif option == '4':
             print("Saliendo del sistema...")
             break
@@ -49,8 +49,8 @@ def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, catego
 # TOMA DE PEDIDOS
 # =================================================================
 
-def take_order(order_svc, product_svc, cadete_svc, zone_svc):
-    """Flujo completo de toma de pedidos."""
+def take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc):
+    """Flujo completo de toma de pedidos con búsqueda rápida de clientes."""
     print("\n--- TOMAR PEDIDO ---")
     products = product_svc.get_menu()
     if not products:
@@ -58,15 +58,83 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc):
         time.sleep(1)
         return
 
-    # Datos del cliente
-    while True:
-        customer_name = input("Nombre del cliente: ").strip()
-        if customer_name:
-            break
-        print("El nombre es obligatorio.")
+    # =====================================================
+    # IDENTIFICACIÓN DEL CLIENTE (búsqueda híbrida)
+    # =====================================================
+    customer = None       # Objeto Customer si se encontró
+    customer_id = None    # ID para vincular al pedido
+    customer_name = ""
+    phone = ""
+    address = ""
+    zone_id = None
+    zone_name = ""
 
-    phone = input("Teléfono (Opcional): ").strip()
-    address = input("Dirección (Opcional): ").strip()
+    query = input("Cliente (nombre/teléfono, Enter = nuevo): ").strip()
+
+    if query:
+        matches = customer_svc.search(query)
+
+        if len(matches) == 1:
+            customer = matches[0]
+            print(f"\n[✓] {customer.name}", end="")
+            if customer.phone:
+                print(f" | Tel: {customer.phone}", end="")
+            print()
+        elif len(matches) > 1:
+            print(f"\n{len(matches)} clientes encontrados:")
+            for i, c in enumerate(matches, 1):
+                tel = f" | {c.phone}" if c.phone else ""
+                print(f"  {i}. {c.name}{tel}")
+            print(f"  0. Ninguno (cliente nuevo)")
+            sel = input("Seleccione #: ").strip()
+            if sel.isdigit() and 1 <= int(sel) <= len(matches):
+                customer = matches[int(sel) - 1]
+            # Si elige 0 o inválido, queda customer = None
+        else:
+            print("[i] No se encontraron clientes.")
+
+    if customer:
+        customer_id = customer.id
+        customer_name = customer.name
+        phone = customer.phone
+
+        # Selección de dirección guardada
+        if customer.addresses:
+            print(f"\nDirecciones de {customer.name}:")
+            for i, addr in enumerate(customer.addresses, 1):
+                default_mark = " *" if addr.is_default else ""
+                zone_mark = f" ({addr.zone_name})" if addr.zone_name else ""
+                print(f"  [{i}] {addr.label:<10} — {addr.address}{zone_mark}{default_mark}")
+            print(f"  [{len(customer.addresses)+1}] Otra dirección")
+
+            default_idx = "1"
+            a_choice = input(f"Seleccione [{default_idx}]: ").strip() or default_idx
+            if a_choice.isdigit() and 1 <= int(a_choice) <= len(customer.addresses):
+                chosen = customer.addresses[int(a_choice) - 1]
+                address = chosen.address
+                zone_id = chosen.zone_id
+                zone_name = chosen.zone_name
+            else:
+                address = input("Dirección: ").strip()
+        else:
+            address = input("Dirección (Opcional): ").strip()
+
+        if customer.notes:
+            print(f"[Nota] {customer.notes}")
+    else:
+        # Cliente nuevo o sin buscar
+        if query and not query[0].isdigit():
+            customer_name = query  # Usar lo que ya escribió como nombre
+        else:
+            customer_name = ""
+
+        while not customer_name:
+            customer_name = input("Nombre del cliente: ").strip()
+            if not customer_name:
+                print("El nombre es obligatorio.")
+
+        phone = input("Teléfono (Opcional): ").strip()
+        address = input("Dirección (Opcional): ").strip()
 
     # Tipo de entrega
     print("\nTipo de entrega:")
@@ -76,8 +144,6 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc):
     delivery_type = "Envío" if (delivery_choice == "1" or delivery_choice == "") else "Take Away"
 
     delivery_fee = 0
-    zone_id = None
-    zone_name = ""
     if delivery_type == "Envío":
         fee_input = input("Precio del envío [0]: ").strip()
         if fee_input:
@@ -86,20 +152,40 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc):
             except ValueError:
                 delivery_fee = 0
 
-        # Selección de zona de reparto
-        zones = zone_svc.get_zones()
-        if zones:
-            print("\nZona de reparto:")
-            for i, z in enumerate(zones, 1):
-                desc = f" ({z.description})" if z.description else ""
-                print(f"  {i}. {z.name}{desc}")
-            z_choice = input(f"Seleccione zona (1-{len(zones)}) [Enter = sin zona]: ").strip()
-            if z_choice.isdigit() and 1 <= int(z_choice) <= len(zones):
-                selected_zone = zones[int(z_choice) - 1]
-                zone_id = selected_zone.id
-                zone_name = selected_zone.name
+        # Selección de zona — solo si no se autocompletó de la dirección
+        if not zone_id:
+            zones = zone_svc.get_zones()
+            if zones:
+                print("\nZona de reparto:")
+                for i, z in enumerate(zones, 1):
+                    desc = f" ({z.description})" if z.description else ""
+                    print(f"  {i}. {z.name}{desc}")
+                z_choice = input(f"Seleccione zona (1-{len(zones)}) [Enter = sin zona]: ").strip()
+                if z_choice.isdigit() and 1 <= int(z_choice) <= len(zones):
+                    selected_zone = zones[int(z_choice) - 1]
+                    zone_id = selected_zone.id
+                    zone_name = selected_zone.name
+        else:
+            print(f"Zona: {zone_name} (de dirección guardada)")
 
-    # Selección de productos
+    # =====================================================
+    # OFRECER GUARDAR CLIENTE NUEVO
+    # =====================================================
+    if not customer and customer_name and (phone or address):
+        save = input("\n¿Guardar cliente para próximos pedidos? ([s]/n): ").strip().lower()
+        if save != 'n':
+            customer = customer_svc.create(customer_name, phone)
+            customer_id = customer.id
+            print(f"[✓] Cliente #{customer.id} guardado.")
+            # Guardar dirección si tiene
+            if address:
+                addr_zone = zone_id if delivery_type == "Envío" else None
+                customer_svc.add_address(customer.id, address, "Casa", addr_zone, True)
+                print(f"[✓] Dirección guardada.")
+
+    # =====================================================
+    # SELECCIÓN DE PRODUCTOS
+    # =====================================================
     order_items = []
     total_items_price = 0
 
@@ -196,6 +282,7 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc):
             delivery_fee=delivery_fee, cadete=cadete_name,
             payment_method=payment_method, items=order_items,
             zone_id=zone_id, zone_name=zone_name,
+            customer_id=customer_id,
         )
 
         print(f"\nPEDIDO #{order.id} CREADO CON EXITO!")
@@ -219,15 +306,16 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc):
         time.sleep(1)
 
 
+
 # =================================================================
 # ADMINISTRACIÓN
 # =================================================================
 
-def admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc, zone_svc):
+def admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, category_svc, zone_svc, customer_svc):
     while True:
         clear_screen()
         print("\n--- ADMINISTRACION ---")
-        print("1. GESTION (Productos, Cadetes, Categorías y Zonas)")
+        print("1. GESTION (Productos, Cadetes, Categorías, Zonas y Clientes)")
         print("2. REPORTES (Historial, Liquidación y Fiscal)")
         print("3. EXPORTAR A EXCEL (CSV)")
         print("4. Volver")
@@ -235,16 +323,16 @@ def admin_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, categ
         op = input("\nSeleccione opcion: ").strip()
 
         if op == '1':
-            management_menu(product_svc, cadete_svc, category_svc, zone_svc)
+            management_menu(product_svc, cadete_svc, category_svc, zone_svc, customer_svc)
         elif op == '2':
-            reports_menu(order_svc, cadete_svc, report_svc)
+            reports_menu(order_svc, cadete_svc, report_svc, zone_svc)
         elif op == '3':
             export_menu(export_svc)
         elif op == '4':
             break
 
 
-def management_menu(product_svc, cadete_svc, category_svc, zone_svc):
+def management_menu(product_svc, cadete_svc, category_svc, zone_svc, customer_svc):
     while True:
         clear_screen()
         print("\n--- GESTION DE NEGOCIO ---")
@@ -252,7 +340,8 @@ def management_menu(product_svc, cadete_svc, category_svc, zone_svc):
         print("2. Cadetes")
         print("3. Categorías")
         print("4. Zonas de Reparto")
-        print("5. Volver")
+        print("5. Clientes")
+        print("6. Volver")
 
         op = input("\nSeleccione opcion: ").strip()
         if op == '1':
@@ -264,6 +353,8 @@ def management_menu(product_svc, cadete_svc, category_svc, zone_svc):
         elif op == '4':
             zones_menu(zone_svc)
         elif op == '5':
+            customers_menu(customer_svc, zone_svc)
+        elif op == '6':
             break
 
 
@@ -623,7 +714,7 @@ def cadetes_menu(cadete_svc):
 # REPORTES Y FINANZAS
 # =================================================================
 
-def reports_menu(order_svc, cadete_svc, report_svc):
+def reports_menu(order_svc, cadete_svc, report_svc, zone_svc):
     while True:
         clear_screen()
         print("\n--- REPORTES Y FINANZAS ---")
@@ -634,7 +725,7 @@ def reports_menu(order_svc, cadete_svc, report_svc):
 
         op = input("\nSeleccione opcion: ").strip()
         if op == '1':
-            history_menu(order_svc, cadete_svc)
+            history_menu(order_svc, cadete_svc, zone_svc)
         elif op == '2':
             liquidation_menu(report_svc)
         elif op == '3':
@@ -643,7 +734,7 @@ def reports_menu(order_svc, cadete_svc, report_svc):
             break
 
 
-def history_menu(order_svc, cadete_svc):
+def history_menu(order_svc, cadete_svc, zone_svc):
     while True:
         clear_screen()
         print("\n--- HISTORIAL DE PEDIDOS ---")
@@ -652,8 +743,9 @@ def history_menu(order_svc, cadete_svc):
         print("2. Buscar por nombre de cliente")
         print("3. Filtrar por cadete")
         print("4. Filtrar por medio de pago")
-        print("5. Ver por ID de pedido")
-        print("6. Volver")
+        print("5. Filtrar por zona de reparto")
+        print("6. Ver por ID de pedido")
+        print("7. Volver")
 
         choice = input("\nSeleccione opcion: ").strip()
 
@@ -684,6 +776,22 @@ def history_menu(order_svc, cadete_svc):
             p_method = "Online" if p_sel == "2" else "Efectivo"
             filtered_orders = order_svc.get_orders(payment_filter=p_method)
         elif choice == '5':
+            zones = zone_svc.get_zones()
+            if not zones:
+                print("No hay zonas registradas.")
+                time.sleep(1)
+                continue
+            for i, z in enumerate(zones, 1):
+                print(f"{i}. {z.name}")
+            z_sel = input("Seleccione zona #: ").strip()
+            if z_sel.isdigit() and 1 <= int(z_sel) <= len(zones):
+                z_id = zones[int(z_sel) - 1].id
+                filtered_orders = order_svc.get_orders(zone_filter=z_id)
+            else:
+                print("Opción inválida.")
+                time.sleep(1)
+                continue
+        elif choice == '6':
             oid = input("Ingrese ID del pedido: ").strip()
             if oid.isdigit():
                 target = order_svc.get_order_by_id(int(oid))
@@ -694,7 +802,7 @@ def history_menu(order_svc, cadete_svc):
                     print("Pedido no encontrado.")
                     time.sleep(1)
             continue
-        elif choice == '6':
+        elif choice == '7':
             break
         else:
             continue
@@ -804,7 +912,6 @@ def sales_report_menu(report_svc):
             print(f"\nNo se encontraron ventas para: {period_label}")
             input("Enter para continuar...")
             continue
-
         print(f"\n=== RESUMEN {period_label} ===")
         print("-" * 40)
         print(f"EFECTIVO (EF):    ${summary['total_efectivo']:>10}")
@@ -812,6 +919,14 @@ def sales_report_menu(report_svc):
         print("-" * 40)
         print(f"TOTAL GENERAL:     ${summary['total_general']:>10}")
         print("-" * 40)
+
+        # Mostrar resumen por zonas
+        if 'sales_by_zone' in summary and summary['sales_by_zone']:
+            print("\nVentas por Zona de Reparto:")
+            print("-" * 40)
+            for z_name, z_total in sorted(summary['sales_by_zone'].items()):
+                print(f"  {z_name:<25} ${z_total:>10}")
+            print("-" * 40)
 
         print("\n¿Desea ver el listado detallado?")
         print("1. Ver solo ventas ONLINE (para ARCA)")
@@ -877,3 +992,198 @@ def export_menu(export_svc):
             input("\nPresione Enter para continuar...")
         elif op == '3':
             break
+
+
+# =================================================================
+# GESTIÓN DE CLIENTES
+# =================================================================
+
+def customers_menu(customer_svc, zone_svc):
+    while True:
+        clear_screen()
+        print("\n--- GESTION DE CLIENTES ---")
+        customers = customer_svc.get_all()
+        if not customers:
+            print("No hay clientes registrados.")
+        else:
+            print(f"{'ID':<5} {'Nombre':<25} {'Teléfono':<15} {'Notas'}")
+            print("-" * 70)
+            for c in customers:
+                notes_trunc = (c.notes[:25] + "...") if c.notes and len(c.notes) > 25 else (c.notes or "")
+                print(f"{c.id:<5} {c.name:<25} {c.phone:<15} {notes_trunc}")
+            print("-" * 70)
+
+        print("\n1. Agregar Cliente")
+        print("2. Editar Cliente (Datos Básicos / Direcciones)")
+        print("3. Eliminar Cliente")
+        print("4. Volver")
+
+        op = input("Seleccione opcion: ").strip()
+        if op == '1':
+            name = input("Nombre del cliente: ").strip()
+            if not name:
+                print("El nombre es obligatorio.")
+                time.sleep(1)
+                continue
+            phone = input("Teléfono: ").strip()
+            notes = input("Notas/Observaciones: ").strip()
+            customer_svc.create(name, phone, notes)
+            print("Cliente creado.")
+            time.sleep(1)
+        elif op == '2':
+            if not customers:
+                print("No hay clientes para editar.")
+                time.sleep(1)
+                continue
+            sel = input("Ingrese ID del cliente a editar: ").strip()
+            if sel.isdigit():
+                customer_id = int(sel)
+                target = customer_svc.get_by_id(customer_id)
+                if target:
+                    edit_customer_submenu(customer_svc, zone_svc, target)
+                else:
+                    print("Cliente no encontrado.")
+                    time.sleep(1)
+        elif op == '3':
+            if not customers:
+                print("No hay clientes para eliminar.")
+                time.sleep(1)
+                continue
+            sel = input("Ingrese ID del cliente a eliminar: ").strip()
+            if sel.isdigit():
+                customer_id = int(sel)
+                target = customer_svc.get_by_id(customer_id)
+                if target:
+                    order_count = customer_svc.get_order_count(customer_id)
+                    if order_count > 0:
+                        print(f"[!] El cliente '{target.name}' tiene {order_count} pedidos asociados.")
+                        confirm = input("¿Eliminar de todos modos? Sus datos en los pedidos históricos se mantendrán (s/N): ").strip().lower()
+                        if confirm != 's':
+                            continue
+                    else:
+                        confirm = input(f"¿Eliminar al cliente '{target.name}'? (s/N): ").strip().lower()
+                        if confirm != 's':
+                            continue
+                    customer_svc.delete(customer_id)
+                    print("Cliente eliminado.")
+                else:
+                    print("Cliente no encontrado.")
+            time.sleep(1)
+        elif op == '4':
+            break
+
+
+def edit_customer_submenu(customer_svc, zone_svc, customer):
+    while True:
+        clear_screen()
+        customer = customer_svc.get_by_id(customer.id)
+        if not customer:
+            print("Error: El cliente ya no existe.")
+            time.sleep(1)
+            break
+
+        print(f"\n--- EDITAR CLIENTE: {customer.name} (ID: {customer.id}) ---")
+        print(f"Nombre:   {customer.name}")
+        print(f"Teléfono: {customer.phone}")
+        print(f"Notas:    {customer.notes}")
+        print("\nDirecciones:")
+        if not customer.addresses:
+            print("  Sin direcciones registradas.")
+        else:
+            for i, addr in enumerate(customer.addresses, 1):
+                def_mark = " * [PRINCIPAL]" if addr.is_default else ""
+                zone_mark = f" (Zona: {addr.zone_name})" if addr.zone_name else " (Sin Zona)"
+                print(f"  {i}. [{addr.label}] {addr.address}{zone_mark}{def_mark}")
+
+        print("\nOpciones:")
+        print("1. Editar datos básicos (Nombre, Teléfono, Notas)")
+        print("2. Agregar nueva dirección")
+        print("3. Editar dirección existente")
+        print("4. Eliminar dirección")
+        print("5. Volver")
+
+        op = input("Seleccione opcion: ").strip()
+        if op == '1':
+            new_name = input(f"Nuevo nombre [{customer.name}]: ").strip() or customer.name
+            new_phone = input(f"Nuevo teléfono [{customer.phone}]: ").strip() or customer.phone
+            new_notes = input(f"Nuevas notas [{customer.notes}]: ").strip() or customer.notes
+            customer_svc.update(customer.id, new_name, new_phone, new_notes)
+            print("Datos actualizados.")
+            time.sleep(1)
+        elif op == '2':
+            addr_str = input("Dirección (calle, número, etc.): ").strip()
+            if not addr_str:
+                print("La dirección no puede estar vacía.")
+                time.sleep(1)
+                continue
+            label = input("Etiqueta (ej: Casa, Trabajo, Oficina) [Casa]: ").strip() or "Casa"
+
+            zones = zone_svc.get_zones()
+            zone_id = None
+            if zones:
+                print("\nSeleccione Zona:")
+                for i, z in enumerate(zones, 1):
+                    desc = f" ({z.description})" if z.description else ""
+                    print(f"  {i}. {z.name}{desc}")
+                z_choice = input("Seleccione zona #: ").strip()
+                if z_choice.isdigit() and 1 <= int(z_choice) <= len(zones):
+                    zone_id = zones[int(z_choice) - 1].id
+
+            is_default_input = input("¿Establecer como dirección principal? (s/N): ").strip().lower()
+            is_default = (is_default_input == 's')
+
+            customer_svc.add_address(customer.id, addr_str, label, zone_id, is_default)
+            print("Dirección agregada.")
+            time.sleep(1)
+        elif op == '3':
+            if not customer.addresses:
+                print("No hay direcciones para editar.")
+                time.sleep(1)
+                continue
+            sel = input("Ingrese número de dirección a editar: ").strip()
+            if sel.isdigit() and 1 <= int(sel) <= len(customer.addresses):
+                addr = customer.addresses[int(sel) - 1]
+                new_addr_str = input(f"Nueva dirección [{addr.address}]: ").strip() or addr.address
+                new_label = input(f"Nueva etiqueta [{addr.label}]: ").strip() or addr.label
+
+                zones = zone_svc.get_zones()
+                zone_id = addr.zone_id
+                if zones:
+                    curr_zone_label = f" (Actual: {addr.zone_name})" if addr.zone_name else " (Actual: Ninguna)"
+                    print(f"\nSeleccione Zona{curr_zone_label}:")
+                    for i, z in enumerate(zones, 1):
+                        desc = f" ({z.description})" if z.description else ""
+                        print(f"  {i}. {z.name}{desc}")
+                    print("  0. Quitar zona")
+                    z_choice = input("Seleccione zona # (Enter para mantener): ").strip()
+                    if z_choice == '0':
+                        zone_id = None
+                    elif z_choice.isdigit() and 1 <= int(z_choice) <= len(zones):
+                        zone_id = zones[int(z_choice) - 1].id
+
+                is_default_input = input(f"¿Establecer como dirección principal? (Actual: {addr.is_default}) (s/N): ").strip().lower()
+                is_default = (is_default_input == 's') if is_default_input else addr.is_default
+
+                customer_svc.update_address(addr.id, new_addr_str, new_label, zone_id, is_default)
+                print("Dirección actualizada.")
+            else:
+                print("Opción inválida.")
+            time.sleep(1)
+        elif op == '4':
+            if not customer.addresses:
+                print("No hay direcciones para eliminar.")
+                time.sleep(1)
+                continue
+            sel = input("Ingrese número de dirección a eliminar: ").strip()
+            if sel.isdigit() and 1 <= int(sel) <= len(customer.addresses):
+                addr = customer.addresses[int(sel) - 1]
+                confirm = input(f"¿Eliminar la dirección '{addr.label}: {addr.address}'? (s/N): ").strip().lower()
+                if confirm == 's':
+                    customer_svc.delete_address(addr.id)
+                    print("Dirección eliminada.")
+            else:
+                print("Opción inválida.")
+            time.sleep(1)
+        elif op == '5':
+            break
+

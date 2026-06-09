@@ -8,7 +8,7 @@ import datetime
 from typing import List, Optional
 
 from config import DATABASE_FILE
-from domain.models import Product, Order, OrderItem, Category, Zone
+from domain.models import Product, Order, OrderItem, Category, Zone, Customer, CustomerAddress
 
 
 class Database:
@@ -40,6 +40,24 @@ class Database:
                     description TEXT DEFAULT ''
                 );
 
+                CREATE TABLE IF NOT EXISTS customers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    phone TEXT DEFAULT '',
+                    notes TEXT DEFAULT ''
+                );
+
+                CREATE TABLE IF NOT EXISTS customer_addresses (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    customer_id INTEGER NOT NULL,
+                    label TEXT NOT NULL DEFAULT 'Casa',
+                    address TEXT NOT NULL,
+                    zone_id INTEGER,
+                    is_default INTEGER DEFAULT 0,
+                    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+                    FOREIGN KEY (zone_id) REFERENCES zones(id)
+                );
+
                 CREATE TABLE IF NOT EXISTS products (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
@@ -61,7 +79,8 @@ class Database:
                     payment_method TEXT DEFAULT 'Efectivo',
                     total INTEGER NOT NULL,
                     zone_id INTEGER,
-                    zone_name TEXT DEFAULT ''
+                    zone_name TEXT DEFAULT '',
+                    customer_id INTEGER
                 );
 
                 CREATE TABLE IF NOT EXISTS order_items (
@@ -78,18 +97,22 @@ class Database:
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_orders_zone ON orders(zone_id);
+                CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+                CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name COLLATE NOCASE);
+                CREATE INDEX IF NOT EXISTS idx_addresses_cust ON customer_addresses(customer_id);
             """)
 
-            # Migración segura: agregar columnas zone_id y zone_name a orders si no existen
+            # Migración segura: agregar columnas a orders si no existen
             # (para bases de datos creadas antes de esta versión)
-            try:
-                conn.execute("ALTER TABLE orders ADD COLUMN zone_id INTEGER")
-            except sqlite3.OperationalError:
-                pass  # columna ya existe
-            try:
-                conn.execute("ALTER TABLE orders ADD COLUMN zone_name TEXT DEFAULT ''")
-            except sqlite3.OperationalError:
-                pass  # columna ya existe
+            for col_sql in [
+                "ALTER TABLE orders ADD COLUMN zone_id INTEGER",
+                "ALTER TABLE orders ADD COLUMN zone_name TEXT DEFAULT ''",
+                "ALTER TABLE orders ADD COLUMN customer_id INTEGER",
+            ]:
+                try:
+                    conn.execute(col_sql)
+                except sqlite3.OperationalError:
+                    pass  # columna ya existe
             
             # Seed default categories if empty
             cursor = conn.execute("SELECT COUNT(*) FROM categories")
@@ -199,13 +222,13 @@ class Database:
                 """INSERT INTO orders 
                    (date, customer, phone, address, observation,
                     delivery_type, delivery_fee, cadete, payment_method, total,
-                    zone_id, zone_name)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    zone_id, zone_name, customer_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     order.date, order.customer, order.phone, order.address,
                     order.observation, order.delivery_type, order.delivery_fee,
                     order.cadete, order.payment_method, order.total,
-                    order.zone_id, order.zone_name,
+                    order.zone_id, order.zone_name, order.customer_id,
                 ),
             )
             order_id = cursor.lastrowid
@@ -270,6 +293,7 @@ class Database:
                         payment_method=r["payment_method"], items=items,
                         total=r["total"],
                         zone_id=r["zone_id"], zone_name=r["zone_name"] or "",
+                        customer_id=r["customer_id"],
                     )
                 )
 
@@ -299,6 +323,7 @@ class Database:
                 payment_method=r["payment_method"], items=items,
                 total=r["total"],
                 zone_id=r["zone_id"], zone_name=r["zone_name"] or "",
+                customer_id=r["customer_id"],
             )
         finally:
             conn.close()
@@ -470,3 +495,183 @@ class Database:
         finally:
             conn.close()
 
+    # =========================================================
+    # CLIENTES
+    # =========================================================
+
+    def add_customer(self, name: str, phone: str = "", notes: str = "") -> int:
+        """Crea un cliente y retorna su ID."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                "INSERT INTO customers (name, phone, notes) VALUES (?, ?, ?)",
+                (name, phone, notes),
+            )
+            conn.commit()
+            return cursor.lastrowid
+        finally:
+            conn.close()
+
+    def update_customer(self, customer_id: int, name: str, phone: str, notes: str) -> bool:
+        """Actualiza los datos de un cliente."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                "UPDATE customers SET name=?, phone=?, notes=? WHERE id=?",
+                (name, phone, notes, customer_id),
+            )
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+    def remove_customer(self, customer_id: int) -> bool:
+        """Elimina un cliente y sus direcciones (CASCADE)."""
+        conn = self._get_connection()
+        try:
+            conn.execute("DELETE FROM customers WHERE id = ?", (customer_id,))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+    def search_customers(self, query: str) -> List[Customer]:
+        """Búsqueda híbrida: si query es numérico busca por teléfono,
+        si no, busca por nombre (LIKE parcial, case insensitive)."""
+        conn = self._get_connection()
+        try:
+            if query.isdigit():
+                # Buscar por teléfono (contiene el fragmento)
+                rows = conn.execute(
+                    "SELECT id, name, phone, notes FROM customers WHERE phone LIKE ? ORDER BY name",
+                    (f"%{query}%",),
+                ).fetchall()
+            else:
+                # Buscar por nombre (contiene el texto)
+                rows = conn.execute(
+                    "SELECT id, name, phone, notes FROM customers WHERE name LIKE ? COLLATE NOCASE ORDER BY name",
+                    (f"%{query}%",),
+                ).fetchall()
+
+            customers = []
+            for r in rows:
+                c = Customer(id=r["id"], name=r["name"], phone=r["phone"] or "", notes=r["notes"] or "")
+                # Cargar direcciones del cliente
+                c.addresses = self._get_customer_addresses(conn, c.id)
+                customers.append(c)
+            return customers
+        finally:
+            conn.close()
+
+    def get_customer_by_id(self, customer_id: int) -> Optional[Customer]:
+        """Retorna un cliente con sus direcciones, o None."""
+        conn = self._get_connection()
+        try:
+            r = conn.execute(
+                "SELECT id, name, phone, notes FROM customers WHERE id = ?", (customer_id,)
+            ).fetchone()
+            if not r:
+                return None
+            c = Customer(id=r["id"], name=r["name"], phone=r["phone"] or "", notes=r["notes"] or "")
+            c.addresses = self._get_customer_addresses(conn, c.id)
+            return c
+        finally:
+            conn.close()
+
+    def get_all_customers(self) -> List[Customer]:
+        """Retorna todos los clientes (sin direcciones, para listado rápido)."""
+        conn = self._get_connection()
+        try:
+            rows = conn.execute("SELECT id, name, phone, notes FROM customers ORDER BY name").fetchall()
+            return [
+                Customer(id=r["id"], name=r["name"], phone=r["phone"] or "", notes=r["notes"] or "")
+                for r in rows
+            ]
+        finally:
+            conn.close()
+
+    def get_customer_order_count(self, customer_id: int) -> int:
+        """Cuenta cuántos pedidos tiene un cliente."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute("SELECT COUNT(*) FROM orders WHERE customer_id = ?", (customer_id,))
+            return cursor.fetchone()[0]
+        finally:
+            conn.close()
+
+    # =========================================================
+    # DIRECCIONES DE CLIENTES
+    # =========================================================
+
+    def _get_customer_addresses(self, conn, customer_id: int) -> List[CustomerAddress]:
+        """Carga las direcciones de un cliente (usa conexión existente)."""
+        rows = conn.execute(
+            """SELECT ca.id, ca.customer_id, ca.label, ca.address, ca.zone_id,
+                      ca.is_default, COALESCE(z.name, '') AS zone_name
+               FROM customer_addresses ca
+               LEFT JOIN zones z ON z.id = ca.zone_id
+               WHERE ca.customer_id = ?
+               ORDER BY ca.is_default DESC, ca.label""",
+            (customer_id,),
+        ).fetchall()
+        return [
+            CustomerAddress(
+                id=r["id"], customer_id=r["customer_id"], label=r["label"],
+                address=r["address"], zone_id=r["zone_id"],
+                zone_name=r["zone_name"], is_default=bool(r["is_default"]),
+            )
+            for r in rows
+        ]
+
+    def add_customer_address(self, customer_id: int, address: str, label: str = "Casa",
+                             zone_id: int = None, is_default: bool = False) -> int:
+        """Agrega una dirección a un cliente. Si is_default, limpia el flag de las otras."""
+        conn = self._get_connection()
+        try:
+            if is_default:
+                conn.execute(
+                    "UPDATE customer_addresses SET is_default = 0 WHERE customer_id = ?",
+                    (customer_id,),
+                )
+            cursor = conn.execute(
+                """INSERT INTO customer_addresses (customer_id, label, address, zone_id, is_default)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (customer_id, label, address, zone_id, 1 if is_default else 0),
+            )
+            conn.commit()
+            return cursor.lastrowid
+        finally:
+            conn.close()
+
+    def update_customer_address(self, address_id: int, address: str, label: str,
+                                zone_id: int = None, is_default: bool = False) -> bool:
+        """Actualiza una dirección."""
+        conn = self._get_connection()
+        try:
+            if is_default:
+                # Obtener customer_id para limpiar defaults
+                r = conn.execute("SELECT customer_id FROM customer_addresses WHERE id = ?", (address_id,)).fetchone()
+                if r:
+                    conn.execute(
+                        "UPDATE customer_addresses SET is_default = 0 WHERE customer_id = ?",
+                        (r["customer_id"],),
+                    )
+            conn.execute(
+                """UPDATE customer_addresses 
+                   SET address=?, label=?, zone_id=?, is_default=? WHERE id=?""",
+                (address, label, zone_id, 1 if is_default else 0, address_id),
+            )
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+    def remove_customer_address(self, address_id: int) -> bool:
+        """Elimina una dirección por ID."""
+        conn = self._get_connection()
+        try:
+            conn.execute("DELETE FROM customer_addresses WHERE id = ?", (address_id,))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
