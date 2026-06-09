@@ -577,7 +577,7 @@ OUTPUT_MODE = 'POS80'
 
 ```python
 # Pago base diario por cadete (en pesos)
-CADETE_BASE_PAY = 10000
+BASE_PAY_CADETE = 10000
 ```
 
 ### 🖨️ Ancho de Impresión

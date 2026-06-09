@@ -4,10 +4,9 @@ import datetime
 import platform
 from collections import Counter
 
-from config import PRINTER_WIDTH, PRINTER_OUTPUT_MODE, TICKETS_DIR
+from config import PRINTER_WIDTH, OUTPUT_MODE, TICKETS_DIR, BUSINESS_NAME, BUSINESS_ADDRESS
 
 # Configuración importada
-OUTPUT_MODE = PRINTER_OUTPUT_MODE
 WIDTH = PRINTER_WIDTH
 
 # Comandos ESC/POS genéricos
@@ -176,8 +175,8 @@ def print_control_ticket(order_data):
     total = _get_attr(order_data, 'total', 0)
     zone_name = _get_attr(order_data, 'zone_name', '')
 
-    lines.append(center_text("LPM PIZZAS"))
-    lines.append(center_text("M.David 4304"))
+    lines.append(center_text(BUSINESS_NAME))
+    lines.append(center_text(BUSINESS_ADDRESS))
     lines.append("-" * WIDTH)
 
     dt = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -243,7 +242,7 @@ def print_menu_ticket(products):
     """Genera e imprime un ticket con el menú completo para referencia (machete)."""
     lines = []
     lines.append(center_text("=== MENU DE PRODUCTOS ==="))
-    lines.append(center_text("LPM PIZZAS"))
+    lines.append(center_text(BUSINESS_NAME))
     lines.append("=" * WIDTH)
 
     # Agrupar por categoría

@@ -9,6 +9,8 @@ else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Configuración del Negocio
+BUSINESS_NAME = "LPM PIZZAS"
+BUSINESS_ADDRESS = "M.David 4304"
 BASE_PAY_CADETE = 10000
 PRODUCT_CATEGORIES = ["Pizza", "Papas", "Empanadas"]
 DELIVERY_TYPES = ["Envío", "Take Away"]
@@ -25,4 +27,4 @@ os.makedirs(TICKETS_DIR, exist_ok=True)
 
 # Configuración de Impresión (modos: 'POS80', 'PDF', 'DEBUG')
 PRINTER_WIDTH = 48
-PRINTER_OUTPUT_MODE = "POS80"
+OUTPUT_MODE = "POS80"
