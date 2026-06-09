@@ -61,27 +61,28 @@ El sistema está pensado para ser **simple de usar** — no necesitás ser progr
 |--------|-------------|
 | 🍕 **Menú de Productos** | Gestión de productos y precios con categorías dinámicas y alineadas por ID |
 | 📁 **Categorías** | CRUD de categorías (crear, renombrar, eliminar) persistidas en la DB |
-| 📝 **Toma de Pedidos** | Búsqueda inteligente de productos (por nombre o ID real), soporte para `2 x muzza`, pizzas mitad y mitad |
+| 👥 **Clientes y Direcciones** | Base de datos de clientes, múltiples direcciones con etiquetas y zonas autocompletadas (Fase 2) |
+| 🗺️ **Zonas de Reparto** | Configuración de zonas de reparto y asignación a direcciones y pedidos (Fase 1) |
+| 📝 **Toma de Pedidos** | Búsqueda inteligente híbrida (por nombre, teléfono o ID real), soporte para `2 x muzza`, cantidades decimales (ej. `0.5 x docena`), pizzas mitad y mitad solo para pizzas grandes |
 | 🛵 **Cadetes** | Alta/baja de repartidores, asignación a pedidos con envío |
 | 💵 **Medios de Pago** | Registro de Efectivo (EF) y Online (ONL) por separado |
-| 🖨️ **Impresión Doble** | **Comanda Cocina** (letras grandes) + **Ticket Control** (detalle completo) con corte automático |
-| 📊 **Liquidación Diaria** | Cálculo automático: $10.000 base + comisiones de envío por cadete |
-| 📈 **Reporte Fiscal** | Resumen de ventas por medio de pago (Efectivo vs Online) — Listo para ARCA |
-| 📂 **Exportar a Excel** | Genera archivos `.csv` compatibles con Excel en español (separador `;`, encoding `utf-8-sig`) |
-| 🔁 **Historial** | Búsqueda por cliente, cadete, medio de pago o ID — Reimpresión de tickets |
-| 🎯 **Pizza Mitad y Mitad** | Selección de dos sabores, cobra el precio del más caro |
+| 🖨️ **Impresión Doble** | **Comanda Cocina** con zona grande + **Ticket Control** (detalle completo) con corte automático |
+| 📊 **Liquidación Diaria** | Cálculo automático: base de cadetes + comisiones de envío |
+| 📈 **Reporte Fiscal** | Resumen de ventas por medio de pago y desglose por zonas (Listo para ARCA) (Fase 3) |
+| 📂 **Exportar a Excel** | Genera archivos `.csv` compatibles con Excel incluyendo columna de Zonas |
+| 🔁 **Historial** | Búsqueda por cliente, cadete, medio de pago, zona de reparto o ID — Reimpresión de tickets |
 
 ---
 
 ## ⚙️ Requisitos del Sistema
 
-| Requisito | Detalle |
-|-----------|---------|
-| 💻 **Sistema Operativo** | Windows 10 o Windows 11 |
-| 🐍 **Python** | Versión 3.7 o superior |
-| 🖨️ **Impresora** | Térmica de 80mm (POS80) — *Opcional para desarrollo* |
-| 💾 **Espacio en disco** | Menos de 10 MB |
-| 🌐 **Internet** | NO necesario (funciona 100% offline) |
+| Requisito | Opción Ejecutable (`LpmPizzas.exe`) | Opción Python (`main.py`) |
+|-----------|----------------------------------|---------------------------|
+| 💻 **Sistema Operativo** | Windows 10 o Windows 11 | Windows 10 o Windows 11 |
+| 🐍 **Python** | **NO requerido** (incluido dentro del ejecutable) | Versión 3.7 o superior |
+| 🖨️ **Impresora** | Térmica de 80mm (POS80) (Opcional) | Térmica de 80mm (POS80) (Opcional) |
+| 💾 **Espacio en disco** | Menos de 15 MB | Menos de 5 MB |
+| 🌐 **Internet** | NO necesario (funciona 100% offline) | NO necesario (funciona 100% offline) |
 
 > **📌 Nota:** El sistema no requiere instalar ninguna librería adicional de Python. Usa solo módulos incluidos con Python (sqlite3, csv, datetime, etc.).
 
@@ -154,17 +155,24 @@ Seguí las instrucciones de la sección [Configuración de la Impresora](#️-co
 
 ## 🚀 Cómo Ejecutar el Sistema
 
-### Forma rápida (recomendada):
-Hacé **doble clic** en el archivo:
+### Opción A: Ejecutable Directo (Recomendado - Sin instalar Python)
+Si querés llevar el programa a otra computadora de forma rápida:
+1. Copiá la carpeta `dist/` a cualquier lugar de la PC.
+2. Hacé **doble clic** directamente en el archivo executable:
+   ```
+   📁 dist/
+     └── 📥 LpmPizzas.exe   ◄── Doble clic acá
+   ```
+*Nota: Este archivo incluye todas las dependencias y corre directo en cualquier Windows 10/11.*
 
+### Opción B: Script con Python
+Hacé **doble clic** en el script de arranque:
 ```
 📁 proyecto de la pizzeria/
   └── 🟢 run_pizzeria.bat   ◄── Doble clic acá
 ```
-
-### Forma manual (desde terminal):
+O de forma manual desde terminal:
 ```bash
-cd "C:\Users\TuNombre\Desktop\proyecto de la pizzeria"
 python main.py
 ```
 
@@ -322,7 +330,42 @@ El sistema utiliza **SQLite** como base de datos. El archivo `pizzeria.db` se cr
 | `id` | INTEGER (PK) | Identificador único, autoincremental |
 | `name` | TEXT NOT NULL | Nombre del producto (máx. 30 caracteres) |
 | `price` | INTEGER NOT NULL | Precio en pesos (sin decimales) |
-| `category` | TEXT DEFAULT 'Pizza' | Categoría: `Pizza`, `Papas` o `Empanadas` |
+| `category` | TEXT DEFAULT 'Pizza' | Categoría: `Pizza`, `Papas`, `Empanadas` o personalizadas |
+
+### Tabla `categories` — Categorías de productos
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `id` | INTEGER (PK) | Identificador único, autoincremental |
+| `name` | TEXT NOT NULL UNIQUE | Nombre de la categoría (ej. Pizza) |
+
+### Tabla `zones` — Zonas de reparto
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `id` | INTEGER (PK) | Identificador único, autoincremental |
+| `name` | TEXT NOT NULL UNIQUE | Nombre de la zona (ej. Zona 1) |
+| `description` | TEXT | Calles o referencias de límites |
+
+### Tabla `customers` — Clientes registrados
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `id` | INTEGER (PK) | Identificador único, autoincremental |
+| `name` | TEXT NOT NULL | Nombre y apellido del cliente |
+| `phone` | TEXT UNIQUE | Teléfono principal (utilizado para búsqueda rápida) |
+| `notes` | TEXT | Notas fijas o indicaciones de entrega |
+
+### Tabla `customer_addresses` — Direcciones de los clientes
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `id` | INTEGER (PK) | Identificador único, autoincremental |
+| `customer_id` | INTEGER (FK) | ID del cliente (`customers.id`, cascade delete) |
+| `label` | TEXT | Etiqueta (ej. Casa, Oficina, Trabajo) |
+| `address` | TEXT NOT NULL | Dirección física (calle y altura) |
+| `zone_id` | INTEGER (FK) | Zona de reparto asociada (`zones.id`) |
+| `is_default` | INTEGER | `1` si es la dirección predeterminada, `0` en caso contrario |
 
 ### Tabla `orders` — Pedidos
 
@@ -330,15 +373,18 @@ El sistema utiliza **SQLite** como base de datos. El archivo `pizzeria.db` se cr
 |---------|------|-------------|
 | `id` | INTEGER (PK) | Número de pedido, autoincremental |
 | `date` | TEXT NOT NULL | Fecha y hora (`YYYY-MM-DD HH:MM:SS`) |
-| `customer` | TEXT NOT NULL | Nombre del cliente |
-| `phone` | TEXT | Teléfono del cliente |
-| `address` | TEXT | Dirección de entrega |
+| `customer` | TEXT NOT NULL | Nombre del cliente (snapshot histórico) |
+| `phone` | TEXT | Teléfono del cliente (snapshot histórico) |
+| `address` | TEXT | Dirección de entrega (snapshot histórico) |
 | `observation` | TEXT | Observaciones (ej: "sin cebolla") |
 | `delivery_type` | TEXT NOT NULL | `Envío` o `Take Away` |
 | `delivery_fee` | INTEGER DEFAULT 0 | Costo del envío en pesos |
 | `cadete` | TEXT | Nombre del cadete asignado |
 | `payment_method` | TEXT DEFAULT 'Efectivo' | `Efectivo` o `Online` |
 | `total` | INTEGER NOT NULL | Total cobrado (productos + envío) |
+| `zone_id` | INTEGER (FK) | Zona del pedido (`zones.id`, opcional) |
+| `zone_name` | TEXT | Nombre de la zona al momento del pedido |
+| `customer_id` | INTEGER (FK) | Referencia al cliente (`customers.id`, opcional) |
 
 ### Tabla `order_items` — Detalle de cada pedido
 
@@ -346,9 +392,8 @@ El sistema utiliza **SQLite** como base de datos. El archivo `pizzeria.db` se cr
 |---------|------|-------------|
 | `id` | INTEGER (PK) | Identificador único |
 | `order_id` | INTEGER (FK) | Referencia a `orders.id` |
-| `product_name` | TEXT NOT NULL | Nombre del producto al momento de la venta |
+| `name` | TEXT NOT NULL | Nombre del producto al momento de la venta |
 | `price` | INTEGER NOT NULL | Precio unitario al momento de la venta |
-| `quantity` | INTEGER DEFAULT 1 | Cantidad de unidades |
 
 ### Tabla `cadetes` — Repartidores
 
@@ -361,11 +406,46 @@ El sistema utiliza **SQLite** como base de datos. El archivo `pizzeria.db` se cr
 
 ```mermaid
 erDiagram
+    CATEGORIES ||--o{ PRODUCTS : "clasifica"
+    ZONES ||--o{ CUSTOMER_ADDRESSES : "cubre"
+    ZONES ||--o{ ORDERS : "contiene"
+    CUSTOMERS ||--o{ CUSTOMER_ADDRESSES : "tiene"
+    CUSTOMERS ||--o{ ORDERS : "realiza"
+    ORDERS ||--o{ ORDER_ITEMS : "contiene"
+    CADETES ||--o{ ORDERS : "reparte"
+
     PRODUCTS {
         int id PK
         text name
         int price
-        text category
+        text category FK
+    }
+
+    CATEGORIES {
+        int id PK
+        text name UK
+    }
+
+    ZONES {
+        int id PK
+        text name UK
+        text description
+    }
+
+    CUSTOMERS {
+        int id PK
+        text name
+        text phone UK
+        text notes
+    }
+
+    CUSTOMER_ADDRESSES {
+        int id PK
+        int customer_id FK
+        text label
+        text address
+        int zone_id FK
+        int is_default
     }
 
     ORDERS {
@@ -380,23 +460,22 @@ erDiagram
         text cadete
         text payment_method
         int total
+        int zone_id FK
+        text zone_name
+        int customer_id FK
     }
 
     ORDER_ITEMS {
         int id PK
         int order_id FK
-        text product_name
+        text name
         int price
-        int quantity
     }
 
     CADETES {
         int id PK
-        text name
+        text name UK
     }
-
-    ORDERS ||--o{ ORDER_ITEMS : "contiene"
-    CADETES ||--o{ ORDERS : "reparte"
 ```
 
 ---
