@@ -1,37 +1,19 @@
-"""
-Sistema de impresión - Formateo y envío de tickets.
-
-IMPORTANTE: Toda la lógica de comandos ESC/POS, tamaños de fuente,
-normalización de texto y corte de guillotina se preserva EXACTAMENTE
-como en la versión original. Solo se externalizó la configuración
-a config.py y se adaptó para aceptar objetos Order (dataclass).
-
-Configuración de salida (desde config.py):
-  'POS80' -> Envía directo a la impresora térmica (Usa esto en la PC final)
-  'PDF'   -> Abre la ventana de Windows para guardar como PDF (Para probar diseño)
-  'DEBUG' -> Solo muestra una vista previa en la consola negra
-"""
+"""Sistema de impresión y formateo de tickets ESC/POS."""
 import os
 import datetime
 import platform
 from collections import Counter
 
-from config import PRINTER_WIDTH, PRINTER_OUTPUT_MODE
+from config import PRINTER_WIDTH, PRINTER_OUTPUT_MODE, TICKETS_DIR
 
-# =================================================================
-# CONFIGURACION (importada desde config.py)
-# =================================================================
+# Configuración importada
 OUTPUT_MODE = PRINTER_OUTPUT_MODE
 WIDTH = PRINTER_WIDTH
 
-# =================================================================
-# Comandos ESC/POS (Solo funcionan en modo 'POS80')
-# NO MODIFICAR estos valores - son los comandos exactos que la
-# impresora térmica necesita para funcionar correctamente.
-# =================================================================
+# Comandos ESC/POS genéricos
 BIG_FONT_ON = "\x1b\x21\x30"   # Doble altura y ancho
 BIG_FONT_OFF = "\x1b\x21\x00"  # Fuente normal
-CUT_COMMAND = "\n\n\x1d\x56\x42\x00"  # Corte automático por guillotina
+CUT_COMMAND = "\n\n\x1d\x56\x42\x00"  # Corte de guillotina
 
 
 def center_text(text, width=WIDTH):
@@ -44,9 +26,7 @@ def format_line(left, right, width=WIDTH):
 
 
 def normalize_text(text):
-    """Remueve acentos y caracteres especiales para impresoras térmicas.
-    Convierte ñ/Ñ a n/N y elimina ¡¿ para evitar caracteres rotos
-    en codepages de impresoras genéricas."""
+    """Quita acentos y caracteres especiales para compatibilidad térmica."""
     import unicodedata
     if not text:
         return ""
@@ -60,33 +40,31 @@ def sanitize_filename(name):
 
 
 def process_output(filename, text_content, raw_content):
-    """Maneja la salida según el modo seleccionado."""
+    """Procesa la salida física o digital del ticket."""
     try:
         if OUTPUT_MODE == 'DEBUG':
             print(f"\n--- VISTA PREVIA: {filename} ---")
-            # En consola mostramos marcas para lo que sería grande
             preview = text_content.replace(BIG_FONT_ON, "[GRANDE]").replace(BIG_FONT_OFF, "[NORMAL]")
             print(preview)
             print("-" * 30)
 
         elif OUTPUT_MODE == 'PDF':
-            # Escribimos un archivo limpio sin códigos raros para que el PDF no falle
             clean_text = text_content.replace(BIG_FONT_ON, "").replace(BIG_FONT_OFF, "")
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(clean_text)
 
             if platform.system() == "Windows":
-                # Este comando abre la ventana de 'Guardar como PDF' de Windows
+                # Abre la ventana de impresión nativa de Windows
                 cmd = f'powershell -Command "Get-Content -Path \'{filename}\' | Out-Printer"'
                 os.system(cmd)
                 print(f"Ventana de impresión abierta para: {filename}")
 
         elif OUTPUT_MODE == 'POS80':
-            # Modo Real: Escribimos todo incluyendo comandos de corte y tamaño
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(raw_content)
 
             if platform.system() == "Windows":
+                # Copia el archivo binario directamente al puerto de la ticketera
                 cmd = f'copy /b "{filename}" "\\\\127.0.0.1\\POS80"'
                 os.system(cmd)
                 print(f"Enviado a impresora POS80: {filename}")
@@ -95,9 +73,7 @@ def process_output(filename, text_content, raw_content):
         print(f"Error al procesar salida: {e}")
 
 
-# =================================================================
-# Helpers para acceder a datos del pedido (soporta dict y dataclass)
-# =================================================================
+# Helpers de compatibilidad (soportan dict y dataclass)==============================
 
 def _get_attr(order_data, attr, default=""):
     """Accede a un atributo del pedido, sea dict u objeto."""
@@ -179,9 +155,10 @@ def print_kitchen_order(order_data):
 
     safe_name = sanitize_filename(customer)
     filename = f"comanda_{order_id}_{safe_name}.txt"
+    filepath = os.path.join(TICKETS_DIR, filename)
 
-    process_output(filename, text_content, raw_content)
-    return filename
+    process_output(filepath, text_content, raw_content)
+    return filepath
 
 
 def print_control_ticket(order_data):
@@ -256,6 +233,52 @@ def print_control_ticket(order_data):
 
     safe_name = sanitize_filename(customer)
     filename = f"ticket_{order_id}_{safe_name}.txt"
+    filepath = os.path.join(TICKETS_DIR, filename)
 
-    process_output(filename, text_content, raw_content)
-    return filename
+    process_output(filepath, text_content, raw_content)
+    return filepath
+
+
+def print_menu_ticket(products):
+    """Genera e imprime un ticket con el menú completo para referencia (machete)."""
+    lines = []
+    lines.append(center_text("=== MENU DE PRODUCTOS ==="))
+    lines.append(center_text("LPM PIZZAS"))
+    lines.append("=" * WIDTH)
+
+    # Agrupar por categoría
+    from collections import defaultdict
+    categories = defaultdict(list)
+    for item in products:
+        categories[item.category].append(item)
+
+    for category in sorted(categories.keys()):
+        lines.append("")
+        lines.append(center_text(f"*** {category.upper()} ***"))
+        lines.append(f"{'ID':<4} {'Producto':<33} {'Precio'}")
+        lines.append("-" * WIDTH)
+        for p in categories[category]:
+            display_id = str(p.id) if p.id is not None else ""
+            price_str = f"${p.price}"
+            # Truncar nombre a 33 caracteres para que entre alineado
+            name_display = p.name[:33]
+            space = WIDTH - len(f"{display_id:<4}") - len(name_display) - len(price_str)
+            if space > 0:
+                line = f"{display_id:<4}{name_display}{' ' * space}{price_str}"
+            else:
+                line = f"{display_id:<4}{name_display} {price_str}"
+            lines.append(line)
+        lines.append("-" * WIDTH)
+
+    lines.append("")
+    lines.append("=" * WIDTH)
+    lines.append(center_text("FIN DEL MENU"))
+
+    text_content = normalize_text("\n".join(lines))
+    raw_content = text_content + CUT_COMMAND
+
+    filename = "menu_productos_machete.txt"
+    filepath = os.path.join(TICKETS_DIR, filename)
+
+    process_output(filepath, text_content, raw_content)
+    return filepath

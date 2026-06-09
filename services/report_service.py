@@ -98,11 +98,14 @@ class ReportService:
             report_lines.append("No hay ventas online.")
 
         report_text = "\n".join(report_lines)
+        import os
+        from config import TICKETS_DIR
         filename = f"reporte_fiscal_{period_label.replace(' ', '_').replace('(', '').replace(')', '')}.txt"
+        filepath = os.path.join(TICKETS_DIR, filename)
 
         original_mode = printer.OUTPUT_MODE
         if printer.OUTPUT_MODE != 'POS80':
             printer.OUTPUT_MODE = 'PDF'
 
-        printer.process_output(filename, report_text, report_text)
+        printer.process_output(filepath, report_text, report_text)
         printer.OUTPUT_MODE = original_mode

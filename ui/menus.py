@@ -7,7 +7,7 @@ import time
 import datetime
 
 from ui.display import clear_screen, print_header, show_menu, show_order_detail
-from ui.input_helpers import parse_quantity_query, search_product, handle_half_and_half
+from ui.input_helpers import parse_quantity_query, search_product, handle_half_and_half, remove_accents
 from infra import printer
 
 
@@ -30,8 +30,16 @@ def main_menu(order_svc, product_svc, cadete_svc, report_svc, export_svc, catego
         if option == '1':
             clear_screen()
             print_header()
-            show_menu(product_svc.get_menu())
-            input("\nEnter para volver...")
+            products = product_svc.get_menu()
+            show_menu(products)
+            print("\nOpciones:")
+            print("1. Imprimir menú en ticketera (Machete)")
+            print("2. Volver al menú principal")
+            sel = input("\nSeleccione opción [2]: ").strip()
+            if sel == '1':
+                print("\nImprimiendo menú...")
+                printer.print_menu_ticket(products)
+                time.sleep(1)
         elif option == '2' or option == '':
             clear_screen()
             take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc)
@@ -69,7 +77,9 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc):
     zone_id = None
     zone_name = ""
 
-    query = input("Cliente (nombre/teléfono, Enter = nuevo): ").strip()
+    query = input("Cliente (nombre/teléfono, Enter = nuevo, 0 = Volver): ").strip()
+    if query == '0' or query.lower() in ['salir', 'volver', 'cancelar']:
+        return
 
     if query:
         matches = customer_svc.search(query)
@@ -97,28 +107,6 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc):
         customer_id = customer.id
         customer_name = customer.name
         phone = customer.phone
-
-        # Selección de dirección guardada
-        if customer.addresses:
-            print(f"\nDirecciones de {customer.name}:")
-            for i, addr in enumerate(customer.addresses, 1):
-                default_mark = " *" if addr.is_default else ""
-                zone_mark = f" ({addr.zone_name})" if addr.zone_name else ""
-                print(f"  [{i}] {addr.label:<10} — {addr.address}{zone_mark}{default_mark}")
-            print(f"  [{len(customer.addresses)+1}] Otra dirección")
-
-            default_idx = "1"
-            a_choice = input(f"Seleccione [{default_idx}]: ").strip() or default_idx
-            if a_choice.isdigit() and 1 <= int(a_choice) <= len(customer.addresses):
-                chosen = customer.addresses[int(a_choice) - 1]
-                address = chosen.address
-                zone_id = chosen.zone_id
-                zone_name = chosen.zone_name
-            else:
-                address = input("Dirección: ").strip()
-        else:
-            address = input("Dirección (Opcional): ").strip()
-
         if customer.notes:
             print(f"[Nota] {customer.notes}")
     else:
@@ -129,12 +117,13 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc):
             customer_name = ""
 
         while not customer_name:
-            customer_name = input("Nombre del cliente: ").strip()
+            customer_name = input("Nombre del cliente (0 = Volver): ").strip()
+            if customer_name == '0' or customer_name.lower() in ['salir', 'volver', 'cancelar']:
+                return
             if not customer_name:
                 print("El nombre es obligatorio.")
 
         phone = input("Teléfono (Opcional): ").strip()
-        address = input("Dirección (Opcional): ").strip()
 
     # Tipo de entrega
     print("\nTipo de entrega:")
@@ -145,6 +134,31 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc):
 
     delivery_fee = 0
     if delivery_type == "Envío":
+        # Selección de dirección
+        if customer:
+            if customer.addresses:
+                print(f"\nDirecciones de {customer.name}:")
+                for i, addr in enumerate(customer.addresses, 1):
+                    default_mark = " *" if addr.is_default else ""
+                    zone_mark = f" ({addr.zone_name})" if addr.zone_name else ""
+                    print(f"  [{i}] {addr.label:<10} — {addr.address}{zone_mark}{default_mark}")
+                print(f"  [{len(customer.addresses)+1}] Otra dirección")
+
+                default_idx = "1"
+                a_choice = input(f"Seleccione [{default_idx}]: ").strip() or default_idx
+                if a_choice.isdigit() and 1 <= int(a_choice) <= len(customer.addresses):
+                    chosen = customer.addresses[int(a_choice) - 1]
+                    address = chosen.address
+                    zone_id = chosen.zone_id
+                    zone_name = chosen.zone_name
+                else:
+                    address = input("Dirección: ").strip()
+            else:
+                address = input("Dirección: ").strip()
+        else:
+            address = input("Dirección: ").strip()
+
+        # Precio de envío
         fee_input = input("Precio del envío [0]: ").strip()
         if fee_input:
             try:
@@ -167,6 +181,10 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc):
                     zone_name = selected_zone.name
         else:
             print(f"Zona: {zone_name} (de dirección guardada)")
+    else:
+        address = ""
+        zone_id = None
+        zone_name = ""
 
     # =====================================================
     # OFRECER GUARDAR CLIENTE NUEVO
@@ -188,28 +206,82 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc):
     # =====================================================
     order_items = []
     total_items_price = 0
+    status_message = ""
 
     while True:
-        print(f"\nPedido de: {customer_name}")
+        clear_screen()
+        print_header()
         zone_label = f" | {zone_name}" if zone_name else ""
-        print(f"Items: {len(order_items)} | Subtotal: ${total_items_price}{zone_label}")
-        print("Opciones: 'menu', 'fin', o producto (ej: 'muzza', '2 x napo')")
+        print(f"Cliente: {customer_name}{zone_label} | Entrega: {delivery_type}")
+        print("=" * 50)
+
+        # Mostrar productos cargados
+        if order_items:
+            print("PRODUCTOS CARGADOS:")
+            for idx, item in enumerate(order_items, 1):
+                print(f"  {idx:<3} {item['name']:<35} ${item['price']}")
+            print("=" * 50)
+        else:
+            print("[ El pedido está vacío ]")
+            print("=" * 50)
+
+        print(f"Items: {len(order_items)} | Subtotal: ${total_items_price}")
+        print("=" * 50)
+
+        if status_message:
+            print(status_message)
+            print("=" * 50)
+            status_message = ""  # Reset para la próxima vuelta
+
+        print("'menu', 'fin', 'cancelar'")
+        if order_items:
+            print("eliminar item: -<número>")
+        print("-" * 50)
 
         query_input = input("Producto: ").strip()
 
+        if not query_input:
+            continue
+
         if query_input.lower() == 'fin':
             break
-        elif query_input.lower() == 'menu':
-            show_menu(products)
+
+        elif query_input.lower() == 'cancelar':
+            confirm = input("\n¿Está seguro de que desea cancelar el pedido? (s/N): ").strip().lower()
+            if confirm == 's':
+                order_items = []  # Vaciamos para cancelar
+                print("Pedido cancelado.")
+                time.sleep(1)
+                return
             continue
+
+        elif query_input.lower() == 'menu':
+            clear_screen()
+            print_header()
+            show_menu(products)
+            input("\nPresione Enter para volver al pedido...")
+            continue
+
         elif query_input.lower() in ['mitad', '1/2']:
             half_item = handle_half_and_half(products)
             if half_item:
                 order_items.append(half_item)
                 total_items_price += half_item['price']
-                print("Mitad y mitad agregada con éxito.")
+                status_message = f"[✓] Agregado: {half_item['name']} (${half_item['price']})"
             continue
-        elif not query_input:
+
+        elif query_input.startswith('-'):
+            item_str = query_input[1:].strip()
+            if item_str.isdigit():
+                idx_to_remove = int(item_str) - 1
+                if 0 <= idx_to_remove < len(order_items):
+                    removed_item = order_items.pop(idx_to_remove)
+                    total_items_price -= removed_item['price']
+                    status_message = f"[✓] Eliminado: {removed_item['name']}"
+                else:
+                    status_message = f"[x] Error: El número {item_str} está fuera de rango."
+            else:
+                status_message = "[x] Error: Formato incorrecto. Escriba -<número> (ej: -1)."
             continue
 
         # Parsear cantidad y buscar
@@ -219,23 +291,35 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc):
         selected_pizza = None
 
         if not matches:
-            print("No se encontraron coincidencias.")
+            status_message = f"[x] No se encontraron coincidencias para '{query}'."
         elif len(matches) == 1:
             selected_pizza = matches[0]
-            print(f"Agregar {quantity} x {selected_pizza.name} (${selected_pizza.price})?")
+            print(f"\nAgregar {quantity} x {selected_pizza.name} (${selected_pizza.price})?")
             confirm = input("Confirmar ([s]/n): ").lower().strip()
-            if confirm != 's' and confirm != '':
+            if confirm == 's' or confirm == '':
+                selected_pizza = matches[0]
+            else:
                 selected_pizza = None
+                status_message = "[i] Agregar cancelado."
         else:
             print("\nCoincidencias encontradas:")
             for i, p in enumerate(matches):
-                print(f"{i+1}. {p.name} (${p.price})")
+                print(f"  {i+1}. {p.name} (${p.price})")
 
-            sel = input("Seleccione # (0 cancelar): ")
-            if sel.isdigit():
+            sel = input("Seleccione # (Enter = [1] / 0 cancelar): ").strip()
+            if sel == "":
+                selected_pizza = matches[0]
+            elif sel == '0':
+                selected_pizza = None
+                status_message = "[i] Selección cancelada."
+            elif sel.isdigit():
                 sel_idx = int(sel) - 1
                 if 0 <= sel_idx < len(matches):
                     selected_pizza = matches[sel_idx]
+                else:
+                    status_message = "[i] Selección cancelada."
+            else:
+                status_message = "[i] Selección cancelada."
 
         # Agregar al carrito
         if selected_pizza:
@@ -245,12 +329,12 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc):
                 item_name = f"{quantity} x {selected_pizza.name}"
                 order_items.append({"name": item_name, "price": item_price})
                 total_items_price += item_price
-                print(f"Agregado {quantity} x {selected_pizza.name} (${item_price}).")
+                status_message = f"[✓] Agregado: {quantity} x {selected_pizza.name} (${item_price})"
             else:
                 for _ in range(quantity):
                     order_items.append({"name": selected_pizza.name, "price": selected_pizza.price})
                     total_items_price += selected_pizza.price
-                print(f"Agregado {quantity} items.")
+                status_message = f"[✓] Agregado: {quantity} x {selected_pizza.name}"
 
     # Finalizar pedido
     if order_items:
@@ -431,7 +515,7 @@ def products_menu(product_svc):
                         break
             else:
                 for p in products:
-                    if p.name.lower() == query.lower():
+                    if remove_accents(p.name.lower()) == remove_accents(query.lower()):
                         target = p
                         break
 
@@ -485,7 +569,7 @@ def products_menu(product_svc):
                         break
             else:
                 for p in products:
-                    if p.name.lower() == query.lower():
+                    if remove_accents(p.name.lower()) == remove_accents(query.lower()):
                         target = p
                         break
 

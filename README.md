@@ -286,7 +286,9 @@ proyecto de la pizzeria/
 │   ├── database.py                # Conexión y queries a SQLite
 │   └── printer.py                 # Impresión ESC/POS (térmica 80mm) y PDF
 │
-├── 🗃️ pizzeria.db                 # Base de datos SQLite (se crea automáticamente)
+├── 📂 data/                       # Carpeta de datos
+│   └── 🗃️ pizzeria.db             # Base de datos SQLite (se crea automáticamente)
+├── 📂 tickets/                    # Carpeta de comandas, tickets y reportes
 ├── 🖼️ logo_pizza.png              # Logo del negocio
 ├── 🟢 run_pizzeria.bat            # Script para iniciar con doble clic
 └── 📄 README.md                   # Esta documentación
@@ -321,7 +323,7 @@ sequenceDiagram
 
 ## 🗃️ Estructura de la Base de Datos
 
-El sistema utiliza **SQLite** como base de datos. El archivo `pizzeria.db` se crea automáticamente al iniciar por primera vez.
+El sistema utiliza **SQLite** como base de datos. El archivo `data/pizzeria.db` se crea automáticamente al iniciar por primera vez.
 
 ### Tabla `products` — Productos del menú
 
@@ -713,7 +715,7 @@ Genera un archivo `.csv` que se abre perfectamente en Excel con:
 
 ### 🔴 Se me cerró el sistema y perdí datos
 
-**No te preocupes.** Los datos se guardan automáticamente en `pizzeria.db` después de cada operación. Al volver a abrir el sistema, todo tu historial va a seguir ahí.
+**No te preocupes.** Los datos se guardan automáticamente en `data/pizzeria.db` después de cada operación. Al volver a abrir el sistema, todo tu historial va a seguir ahí.
 
 ---
 
@@ -752,7 +754,7 @@ Los pedidos anteriores conservan el nombre del cadete en su registro. La liquida
 
 ### 🟡 ¿Dónde se guardan los datos?
 
-En el archivo `pizzeria.db` que está en la misma carpeta del sistema. Es un archivo de base de datos SQLite. **No lo borres** — ahí está todo el historial de pedidos, productos y cadetes.
+En el archivo `data/pizzeria.db` que está dentro de la carpeta `data/` del sistema. Es un archivo de base de datos SQLite. **No lo borres ni borres su carpeta** — ahí está todo el historial de pedidos, productos y cadetes.
 
 ---
 

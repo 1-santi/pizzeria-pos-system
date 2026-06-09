@@ -28,23 +28,24 @@ CONFIGURAR IMPRESORA TERMICA:
 
 ARCHIVOS IMPORTANTES:
 - main.py          : Punto de entrada del programa
-- config.py        : Configuracion del sistema (EDITAR ACA)
+- config.py        : Configuración del sistema (EDITAR ACÁ)
 - domain/          : Modelos de datos (Product, Order, etc.)
-- services/        : Logica de negocio (pedidos, reportes, etc.)
-- ui/              : Interfaz de consola (menus, pantallas)
+- services/        : Lógica de negocio (pedidos, reportes, etc.)
+- ui/              : Interfaz de consola (menús, pantallas)
 - infra/           : Base de datos SQLite e impresora
-- pizzeria.db      : Base de datos (se crea automaticamente)
+- data/            : Carpeta que contiene la base de datos (pizzeria.db)
+- tickets/         : Carpeta donde se guardan comandas, tickets y reportes
 - run_pizzeria.bat : Acceso directo para iniciar el programa
 
 NOTAS:
-- Los datos se guardan en "pizzeria.db" (base de datos SQLite)
-- NO borrar este archivo, ahi esta todo el historial
+- Los datos se guardan en "data/pizzeria.db" (base de datos SQLite)
+- NO borrar este archivo ni su carpeta, ahí está todo el historial
 - El sistema NO necesita internet para funcionar
-- Para mas informacion, ver README.md
+- Para más información, ver README.md
 
 =====================================================
   Si algo no funciona, revisar:
-  1. Que Python este instalado (escribir "python --version" en cmd)
-  2. Que la impresora este compartida como "POS80"
-  3. Que OUTPUT_MODE este bien configurado en config.py
+  1. Que Python esté instalado (escribir "python --version" o "py --version" en cmd)
+  2. Que la impresora esté compartida como "POS80"
+  3. Que OUTPUT_MODE esté bien configurado en config.py
 =====================================================
