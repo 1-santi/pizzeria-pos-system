@@ -1,0 +1,22 @@
+# INSTRUCCIONES DEL SISTEMA LPM PIZZAS
+
+Este es un sistema de gestión de pedidos por consola diseñado para ser portátil y fácil de usar.
+
+## Requisitos
+1. **Python 3.x**: Asegúrate de tener Python instalado en la computadora. Puedes descargarlo de [python.org](https://python.org).
+2. **Impresora**: El sistema utiliza la impresora predeterminada de Windows para imprimir los tickets.
+
+## Instalación y Uso
+1. Extrae el contenido del archivo ZIP en una carpeta.
+2. Haz doble clic en `run_pizzeria.bat` para iniciar el programa.
+3. El sistema cargará automáticamente el menú desde `data.json`.
+
+## Archivos Importantes
+- `main.py`: Lógica principal del programa.
+- `store.py`: Manejo de datos y persistencia.
+- `printer.py`: Formateo y envío a impresión.
+- `data.json`: Contiene el menú de productos y el historial de pedidos.
+- `run_pizzeria.bat`: Acceso directo para iniciar el programa sin usar la terminal.
+
+## Notas de Impresión
+El sistema está configurado para papel de **80mm**. Si necesitas ajustar el ancho, puedes editar el archivo `printer.py` y cambiar la variable `WIDTH`.

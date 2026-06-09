@@ -1,0 +1,244 @@
+{
+    "menu": [
+        {
+            "name": "Muzzarella",
+            "price": 1200,
+            "category": "Pizza"
+        },
+        {
+            "name": "Napolitana",
+            "price": 1400,
+            "category": "Pizza"
+        },
+        {
+            "name": "Fugazzeta",
+            "price": 1500,
+            "category": "Pizza"
+        },
+        {
+            "name": "Papas Común",
+            "price": 800,
+            "category": "Papas"
+        },
+        {
+            "name": "Papas con Cheddar",
+            "price": 1000,
+            "category": "Papas"
+        },
+        {
+            "name": "Papas Provenzal",
+            "price": 950,
+            "category": "Papas"
+        },
+        {
+            "name": "Papas con Panceta",
+            "price": 1100,
+            "category": "Papas"
+        },
+        {
+            "name": "Empanada Jamón y Queso",
+            "price": 300,
+            "category": "Empanadas"
+        },
+        {
+            "name": "Empanada Jujeña",
+            "price": 350,
+            "category": "Empanadas"
+        },
+        {
+            "name": "Empanada Dulce",
+            "price": 280,
+            "category": "Empanadas"
+        },
+        {
+            "name": "Empanada Salada",
+            "price": 280,
+            "category": "Empanadas"
+        }
+    ],
+    "orders": [
+        {
+            "id": 1,
+            "date": "2026-01-21 14:58:13",
+            "customer": "miguel",
+            "phone": "",
+            "address": "",
+            "observation": "sin aceituna en 5 napo",
+            "delivery_type": "Take Away",
+            "items": [
+                {
+                    "name": "Fugazzeta",
+                    "price": 1500
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                }
+            ],
+            "total": 15500
+        },
+        {
+            "id": 2,
+            "date": "2026-01-22 16:05:29",
+            "customer": "santiago",
+            "phone": "123123123123",
+            "address": "miguel david",
+            "observation": "sin aceituna",
+            "delivery_type": "Envío",
+            "items": [
+                {
+                    "name": "1/2 Muzzarella / 1/2 Napolitana",
+                    "price": 1400
+                }
+            ],
+            "total": 1400
+        },
+        {
+            "id": 3,
+            "date": "2026-01-22 23:30:26",
+            "customer": "dana",
+            "phone": "",
+            "address": "",
+            "observation": "SIN SALSA LA NAPO",
+            "delivery_type": "Envío",
+            "items": [
+                {
+                    "name": "Muzzarella",
+                    "price": 1200
+                },
+                {
+                    "name": "Muzzarella",
+                    "price": 1200
+                },
+                {
+                    "name": "Muzzarella",
+                    "price": 1200
+                },
+                {
+                    "name": "Muzzarella",
+                    "price": 1200
+                },
+                {
+                    "name": "Papas con Panceta",
+                    "price": 1100
+                },
+                {
+                    "name": "Papas con Panceta",
+                    "price": 1100
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                },
+                {
+                    "name": "Muzzarella",
+                    "price": 1200
+                },
+                {
+                    "name": "1/2 Muzzarella / 1/2 Napolitana",
+                    "price": 1400
+                }
+            ],
+            "total": 11000
+        },
+        {
+            "id": 4,
+            "date": "2026-01-22 23:37:45",
+            "customer": "DANA",
+            "phone": "3425974749",
+            "address": "SANTA FE",
+            "observation": "",
+            "delivery_type": "Envío",
+            "items": [
+                {
+                    "name": "Empanada Salada",
+                    "price": 280
+                },
+                {
+                    "name": "Fugazzeta",
+                    "price": 1500
+                }
+            ],
+            "total": 1780
+        },
+        {
+            "id": 5,
+            "date": "2026-01-24 21:38:05",
+            "customer": "santiago",
+            "phone": "3435770005",
+            "address": "m.david 4304",
+            "observation": "",
+            "delivery_type": "Envío",
+            "delivery_fee": 1500,
+            "cadete": "",
+            "items": [
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                },
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                }
+            ],
+            "total": 4300
+        },
+        {
+            "id": 6,
+            "date": "2026-01-24 21:42:20",
+            "customer": "santiago",
+            "phone": "",
+            "address": "",
+            "observation": "",
+            "delivery_type": "Envío",
+            "delivery_fee": 1500,
+            "cadete": "Ricky",
+            "items": [
+                {
+                    "name": "Napolitana",
+                    "price": 1400
+                }
+            ],
+            "total": 2900
+        }
+    ],
+    "cadetes": [
+        "Ricky"
+    ]
+}
