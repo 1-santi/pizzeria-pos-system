@@ -1,6 +1,6 @@
 """Servicio de clientes - Búsqueda híbrida, CRUD y gestión de direcciones."""
 from typing import List, Optional
-from domain.models import Customer, CustomerAddress
+from domain.models import Customer, CustomerAddress, Order
 from infra.database import Database
 
 
@@ -40,6 +40,9 @@ class CustomerService:
 
     def get_order_count(self, customer_id: int) -> int:
         return self.db.get_customer_order_count(customer_id)
+
+    def get_orders(self, customer_id: int) -> List[Order]:
+        return self.db.get_orders(customer_id_filter=customer_id)
 
     # ----- DIRECCIONES -----
 

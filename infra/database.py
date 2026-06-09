@@ -253,6 +253,7 @@ class Database:
         cadete_filter: str = None,
         payment_filter: str = None,
         zone_filter: int = None,
+        customer_id_filter: int = None,
     ) -> List[Order]:
         """Retorna pedidos con filtros opcionales."""
         conn = self._get_connection()
@@ -272,6 +273,9 @@ class Database:
             if zone_filter is not None:
                 query += " AND zone_id = ?"
                 params.append(zone_filter)
+            if customer_id_filter is not None:
+                query += " AND customer_id = ?"
+                params.append(customer_id_filter)
 
             query += " ORDER BY id"
             rows = conn.execute(query, params).fetchall()

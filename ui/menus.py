@@ -1100,7 +1100,8 @@ def edit_customer_submenu(customer_svc, zone_svc, customer):
         print("2. Agregar nueva dirección")
         print("3. Editar dirección existente")
         print("4. Eliminar dirección")
-        print("5. Volver")
+        print("5. Ver historial de pedidos")
+        print("6. Volver")
 
         op = input("Seleccione opcion: ").strip()
         if op == '1':
@@ -1185,5 +1186,30 @@ def edit_customer_submenu(customer_svc, zone_svc, customer):
                 print("Opción inválida.")
             time.sleep(1)
         elif op == '5':
+            orders = customer_svc.get_orders(customer.id)
+            if not orders:
+                print("El cliente no tiene pedidos registrados.")
+            else:
+                clear_screen()
+                print(f"\n--- HISTORIAL DE PEDIDOS: {customer.name} ---")
+                print(f"{'ID':<5} {'Fecha':<20} {'Total':<10}")
+                print("-" * 40)
+                for o in orders:
+                    print(f"{o.id:<5} {o.date:<20} ${o.total:<10}")
+                print("-" * 40)
+
+                sel = input("\nIngrese ID de pedido para ver detalle (Enter para volver): ").strip()
+                if sel.isdigit():
+                    target = None
+                    for o in orders:
+                        if o.id == int(sel):
+                            target = o
+                            break
+                    if target:
+                        clear_screen()
+                        show_order_detail(target)
+                        input("\nPresione Enter para continuar...")
+            time.sleep(1)
+        elif op == '6':
             break
 
