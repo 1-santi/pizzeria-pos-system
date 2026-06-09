@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="logo_pizza.png" alt="LPM Pizzas Logo" width="180"/>
-</p>
-
 <h1 align="center">🍕 LPM Pizzas — Sistema de Gestión</h1>
 
 <p align="center">
