@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/Python-3.7+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.7+"/>
   <img src="https://img.shields.io/badge/SQLite-Base_de_datos-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite"/>
   <img src="https://img.shields.io/badge/Windows-10%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows"/>
-  <img src="https://img.shields.io/badge/Licencia-Uso_Privado-red?style=for-the-badge" alt="Licencia"/>
+  <img src="https://img.shields.io/badge/Licencia-Híbrida_(Personal%20/%20Comercial)-blueviolet?style=for-the-badge" alt="Licencia"/>
 </p>
 
 <p align="center">
@@ -755,6 +755,16 @@ Los pedidos anteriores conservan el nombre del cadete en su registro. La liquida
 ### 🟡 ¿Dónde se guardan los datos?
 
 En el archivo `data/pizzeria.db` que está dentro de la carpeta `data/` del sistema. Es un archivo de base de datos SQLite. **No lo borres ni borres su carpeta** — ahí está todo el historial de pedidos, productos y cadetes.
+
+---
+
+## 📄 Licencia
+
+Este proyecto se distribuye bajo los términos de una **Licencia Híbrida**:
+- **Uso Personal y Educativo**: Completamente **gratuito**. Podés ver, modificar, experimentar y usar el código para aprender o para tu portafolio personal (siempre atribuyendo la autoría original).
+- **Uso Comercial / Producción**: Si querés usar este sistema para la gestión real de tu negocio o implementarlo para un tercero, se requiere adquirir una **Licencia Comercial**. Por favor ponte en contacto con el autor para adquirirla.
+
+Para ver los términos detallados, consulta el archivo [LICENSE](LICENSE).
 
 ---
 
