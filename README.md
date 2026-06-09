@@ -59,8 +59,9 @@ El sistema está pensado para ser **simple de usar** — no necesitás ser progr
 
 | Módulo | Descripción |
 |--------|-------------|
-| 🍕 **Menú de Productos** | Gestión de Pizzas, Papas y Empanadas con categorías y precios |
-| 📝 **Toma de Pedidos** | Búsqueda inteligente de productos (por nombre o número), soporte para `2 x muzza`, pizzas mitad y mitad |
+| 🍕 **Menú de Productos** | Gestión de productos y precios con categorías dinámicas y alineadas por ID |
+| 📁 **Categorías** | CRUD de categorías (crear, renombrar, eliminar) persistidas en la DB |
+| 📝 **Toma de Pedidos** | Búsqueda inteligente de productos (por nombre o ID real), soporte para `2 x muzza`, pizzas mitad y mitad |
 | 🛵 **Cadetes** | Alta/baja de repartidores, asignación a pedidos con envío |
 | 💵 **Medios de Pago** | Registro de Efectivo (EF) y Online (ONL) por separado |
 | 🖨️ **Impresión Doble** | **Comanda Cocina** (letras grandes) + **Ticket Control** (detalle completo) con corte automático |
@@ -254,13 +255,14 @@ proyecto de la pizzeria/
 │
 ├── 📦 domain/                     # Capa de Dominio (modelos de datos)
 │   ├── __init__.py
-│   ├── models.py                  # Dataclasses: Product, OrderItem, Order
+│   ├── models.py                  # Dataclasses: Product, Category, OrderItem, Order
 │   └── pricing.py                 # Reglas de precios (mitad y mitad, etc.)
 │
 ├── 🔧 services/                   # Capa de Servicios (lógica de negocio)
 │   ├── __init__.py
 │   ├── order_service.py           # Crear pedidos, buscar, filtrar
 │   ├── product_service.py         # Alta, baja y modificación de productos
+│   ├── category_service.py        # Alta, baja y modificación de categorías
 │   ├── cadete_service.py          # Alta, baja de cadetes (repartidores)
 │   ├── report_service.py          # Liquidación diaria y reportes fiscales
 │   └── export_service.py          # Exportación a CSV (Excel)
