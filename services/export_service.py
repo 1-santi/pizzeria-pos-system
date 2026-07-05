@@ -18,7 +18,7 @@ class ExportService:
             return False
 
         headers = [
-            "ID", "Fecha", "Cliente", "Telefono", "Direccion",
+            "ID", "Orden Dia", "Fecha", "Cliente", "Telefono", "Direccion",
             "Zona", "Tipo Entrega", "Envio($)", "Cadete", "Metodo Pago",
             "Total($)", "Items",
         ]
@@ -31,7 +31,7 @@ class ExportService:
                 for o in orders:
                     items_str = ", ".join(item.name for item in o.items)
                     writer.writerow([
-                        o.id, o.date, o.customer, o.phone, o.address,
+                        o.id, o.order_number or "", o.date, o.customer, o.phone, o.address,
                         o.zone_name or "", o.delivery_type, o.delivery_fee, o.cadete,
                         o.payment_method, o.total, items_str,
                     ])

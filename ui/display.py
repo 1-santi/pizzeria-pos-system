@@ -46,7 +46,10 @@ def show_menu(products):
 
 def show_order_detail(order):
     """Muestra el detalle completo de un pedido."""
-    print("\n--- DETALLE DE PEDIDO #" + str(order.id) + " ---")
+    if order.order_number:
+        print(f"\n--- DETALLE — T#{order.id} | O#{order.order_number} ---")
+    else:
+        print("\n--- DETALLE DE PEDIDO #" + str(order.id) + " ---")
     print(f"Fecha:     {order.date}")
     print(f"Cliente:   {order.customer}")
     if order.phone:

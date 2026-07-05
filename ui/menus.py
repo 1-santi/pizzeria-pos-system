@@ -377,7 +377,7 @@ def take_order(order_svc, product_svc, cadete_svc, zone_svc, customer_svc):
             customer_id=customer_id,
         )
 
-        print(f"\nPEDIDO #{order.id} CREADO CON EXITO!")
+        print(f"\nPEDIDO O#{order.order_number} CREADO CON EXITO! (Ticket #{order.id})")
         print(f"Cliente: {customer_name}")
         if zone_name:
             print(f"Zona: {zone_name}")
@@ -819,7 +819,7 @@ def reports_menu(order_svc, cadete_svc, report_svc, zone_svc):
         if op == '1':
             history_menu(order_svc, cadete_svc, zone_svc)
         elif op == '2':
-            liquidation_menu(report_svc)
+            liquidation_menu(report_svc, order_svc, cadete_svc)
         elif op == '3':
             sales_report_menu(report_svc)
         elif op == '4':
@@ -888,7 +888,7 @@ def history_menu(order_svc, cadete_svc, zone_svc):
             if oid.isdigit():
                 target = order_svc.get_order_by_id(int(oid))
                 if target:
-                    order_detail_menu(order_svc, target)
+                    order_detail_menu(order_svc, target, cadete_svc)
                     continue
                 else:
                     print("Pedido no encontrado.")
@@ -904,28 +904,35 @@ def history_menu(order_svc, cadete_svc, zone_svc):
             input("Enter para continuar...")
             continue
 
-        print(f"\n{'ID':<4} {'Fecha':<20} {'Cliente':<20} {'Total':<10}")
-        print("-" * 60)
+        print(f"\n{'ID':<4} {'Ord':<4} {'Fecha':<20} {'Cliente':<18} {'Total':<10}")
+        print("-" * 62)
         for o in filtered_orders:
-            print(f"{o.id:<4} {o.date:<20} {o.customer:<20} ${o.total:<10}")
+            ord_num = f"O#{o.order_number}" if o.order_number else "-"
+            print(f"{o.id:<4} {ord_num:<4} {o.date:<20} {o.customer:<18} ${o.total:<10}")
 
         sel = input("\nIngrese ID para ver detalle (Enter para volver): ").strip()
         if sel.isdigit():
             target = order_svc.get_order_by_id(int(sel))
             if target:
-                order_detail_menu(order_svc, target)
+                order_detail_menu(order_svc, target, cadete_svc)
 
 
-def order_detail_menu(order_svc, order):
-    """Detalle de un pedido con opciones de reimpresión."""
+def order_detail_menu(order_svc, order, cadete_svc=None):
+    """Detalle de un pedido con opciones de reimpresión y edición."""
     while True:
         clear_screen()
+        # Recargar el pedido para reflejar cambios
+        fresh = order_svc.get_order_by_id(order.id)
+        if fresh:
+            order = fresh
         show_order_detail(order)
 
         print("\nOpciones:")
         print("1. Reimprimir Comanda (Cocina)")
         print("2. Reimprimir Ticket (Control)")
-        print("3. Volver")
+        print("3. Cambiar Cadete")
+        print("4. Cambiar Tipo Entrega (Envio/Take Away)")
+        print("5. Volver")
 
         op = input("Seleccione: ").strip()
         if op == '1':
@@ -935,35 +942,190 @@ def order_detail_menu(order_svc, order):
             printer.print_control_ticket(order)
             input("Reimpresión enviada. Enter para continuar...")
         elif op == '3':
+            _change_cadete(order_svc, order, cadete_svc)
+        elif op == '4':
+            _change_delivery_type(order_svc, order, cadete_svc)
+        elif op == '5':
             break
 
 
-def liquidation_menu(report_svc):
-    """Liquidación diaria de cadetes."""
-    clear_screen()
-    print("\n--- LIQUIDACION DE CADETES ---")
-    print("Calculando para el día de hoy...")
+def _change_cadete(order_svc, order, cadete_svc=None):
+    """Submenu para cambiar o quitar el cadete de un pedido."""
+    cadetes = cadete_svc.get_cadetes() if cadete_svc else []
+    print(f"\nCadete actual: {order.cadete or '(ninguno)'}")
+    print("\n0. Quitar cadete (sin asignar)")
+    for i, c in enumerate(cadetes, 1):
+        print(f"{i}. {c}")
+    print(f"{len(cadetes) + 1}. Cancelar")
 
-    today_str = datetime.date.today().strftime("%Y-%m-%d")
-    results = report_svc.get_cadete_liquidation(today_str)
-
-    if not results:
-        print("No hay datos de cadetes para hoy.")
-        input("\nPresione Enter para volver...")
+    sel = input("Seleccione: ").strip()
+    if sel == '0':
+        order_svc.change_cadete(order.id, "")
+        print("Cadete quitado del pedido.")
+        time.sleep(1)
+    elif sel == str(len(cadetes) + 1):
         return
+    elif sel.isdigit() and 1 <= int(sel) <= len(cadetes):
+        new_cadete = cadetes[int(sel) - 1]
+        order_svc.change_cadete(order.id, new_cadete)
+        print(f"Cadete cambiado a: {new_cadete}")
+        time.sleep(1)
+    else:
+        print("Opción inválida.")
+        time.sleep(1)
 
-    from config import BASE_PAY_CADETE
 
-    print(f"\nFecha: {today_str}")
-    print(f"{'Cadete':<20} {'Envios':<8} {'Comision':<10} {'Base':<10} {'Total':<10}")
-    print("-" * 65)
+def _change_delivery_type(order_svc, order, cadete_svc=None):
+    """Submenu para cambiar el tipo de entrega de un pedido."""
+    print(f"\nTipo actual: {order.delivery_type}")
+    if order.delivery_type == "Envío":
+        print("Cambiar a Take Away? (se quita cadete y envio)")
+        conf = input("Confirmar (s/n): ").strip().lower()
+        if conf == 's':
+            order_svc.change_delivery_type(order.id, "Take Away", 0, "")
+            print("Cambiado a Take Away. Cadete y envío removidos.")
+            time.sleep(1)
+    else:
+        print("Cambiar a Envío?")
+        cadetes = cadete_svc.get_cadetes() if cadete_svc else []
+        if not cadetes:
+            print("No hay cadetes registrados. Registre uno primero.")
+            time.sleep(1)
+            return
+        print("\nSeleccione cadete:")
+        for i, c in enumerate(cadetes, 1):
+            print(f"{i}. {c}")
+        sel = input("Seleccione: ").strip()
+        if not sel.isdigit() or not (1 <= int(sel) <= len(cadetes)):
+            print("Cancelado.")
+            time.sleep(1)
+            return
+        new_cadete = cadetes[int(sel) - 1]
+        fee_input = input("Monto de envío: $").strip()
+        if not fee_input.isdigit():
+            print("Monto inválido. Cancelado.")
+            time.sleep(1)
+            return
+        new_fee = int(fee_input)
+        order_svc.change_delivery_type(order.id, "Envío", new_fee, new_cadete)
+        print(f"Cambiado a Envío. Cadete: {new_cadete}, Envío: ${new_fee}")
+        time.sleep(1)
 
-    for r in results:
-        name_display = (r['name'] + r['status'])[:20]
-        print(f"{name_display:<20} {r['envios']:<8} ${r['comision']:<9} ${r['base']:<9} ${r['total']:<9}")
 
-    print("-" * 65)
-    input("\nPresione Enter para volver...")
+def liquidation_menu(report_svc, order_svc, cadete_svc):
+    """Liquidación diaria de cadetes."""
+    while True:
+        clear_screen()
+        print("\n--- LIQUIDACION DE CADETES ---")
+        print("Calculando para el día de hoy...")
+        
+        today_str = datetime.date.today().strftime("%Y-%m-%d")
+        results = report_svc.get_cadete_liquidation(today_str)
+        
+        if not results:
+            print("No hay datos de cadetes para hoy.")
+            input("\nPresione Enter para volver...")
+            return
+
+        print(f"\nFecha: {today_str}")
+        print(f"{'#':<3} {'Cadete':<18} {'Envíos':<8} {'Comisión':<10} {'Base':<10} {'Total':<10}")
+        print("-" * 65)
+
+        for i, r in enumerate(results, 1):
+            name_display = (r['name'] + r['status'])[:18]
+            print(f"{i:<3} {name_display:<18} {r['envios']:<8} ${r['comision']:<9} ${r['base']:<9} ${r['total']:<9}")
+
+        print("-" * 65)
+        print("\nOpciones:")
+        print("[Número del Cadete] - Ver detalle y editar pedidos")
+        print("P - Imprimir TODAS las liquidaciones")
+        print("I - Imprimir liquidación de un cadete")
+        print("V - Volver")
+        
+        choice = input("\nSeleccione: ").strip().lower()
+        if choice == 'v':
+            break
+        elif choice == 'p':
+            print("\nImprimiendo todas las liquidaciones...")
+            for r in results:
+                c_orders = order_svc.get_orders(date_filter=today_str, cadete_filter=r['name'])
+                printer.print_liquidation(r['name'], today_str, r, c_orders)
+            print("Impresión de todas las liquidaciones finalizada.")
+            time.sleep(1.5)
+        elif choice == 'i':
+            print("\nSeleccione el número de cadete para imprimir:")
+            for i, r in enumerate(results, 1):
+                print(f"{i}. {r['name']}")
+            c_sel = input("Seleccione #: ").strip()
+            if c_sel.isdigit() and 1 <= int(c_sel) <= len(results):
+                r = results[int(c_sel) - 1]
+                c_orders = order_svc.get_orders(date_filter=today_str, cadete_filter=r['name'])
+                filepath = printer.print_liquidation(r['name'], today_str, r, c_orders)
+                print(f"Liquidación impresa en: {filepath}")
+            else:
+                print("Opción inválida.")
+            time.sleep(1.5)
+        elif choice.isdigit() and 1 <= int(choice) <= len(results):
+            r = results[int(choice) - 1]
+            cadete_detail_liquidation_menu(report_svc, order_svc, cadete_svc, r['name'], today_str)
+
+
+def cadete_detail_liquidation_menu(report_svc, order_svc, cadete_svc, cadete_name, date_str):
+    while True:
+        clear_screen()
+        all_liqui = report_svc.get_cadete_liquidation(date_str)
+        liq = None
+        for r in all_liqui:
+            if r['name'] == cadete_name:
+                liq = r
+                break
+        
+        if not liq:
+            from config import BASE_PAY_CADETE
+            liq = {
+                'name': cadete_name,
+                'status': "",
+                'envios': 0,
+                'comision': 0,
+                'base': BASE_PAY_CADETE,
+                'total': BASE_PAY_CADETE
+            }
+        
+        print(f"\n--- DETALLE DE LIQUIDACION: {cadete_name.upper()}{liq['status']} ---")
+        print(f"Fecha: {date_str}")
+        print(f"Envíos realizados: {liq['envios']}")
+        print(f"Comisión:          ${liq['comision']}")
+        print(f"Base diaria:       ${liq['base']}")
+        print(f"TOTAL A PAGAR:     ${liq['total']}")
+        print("-" * 50)
+        
+        orders = order_svc.get_orders(date_filter=date_str, cadete_filter=cadete_name)
+        if not orders:
+            print("No hay pedidos asignados a este cadete.")
+        else:
+            print(f"{'#':<3} {'Ticket':<8} {'Orden':<6} {'Cliente':<20} {'Envío':<8}")
+            print("-" * 50)
+            for idx, o in enumerate(orders, 1):
+                ord_num = f"O#{o.order_number}" if o.order_number else "-"
+                print(f"{idx:<3} T#{o.id:<6} {ord_num:<6} {o.customer[:20]:<20} ${o.delivery_fee:<8}")
+            print("-" * 50)
+
+        print("\nOpciones:")
+        if orders:
+            print("[Número del Pedido] - Ver detalle / Editar ese pedido")
+        print("I - Imprimir liquidación de este cadete")
+        print("V - Volver")
+        
+        op = input("\nSeleccione opción: ").strip().lower()
+        if op == 'v':
+            break
+        elif op == 'i':
+            filepath = printer.print_liquidation(cadete_name, date_str, liq, orders)
+            print(f"Liquidación impresa en: {filepath}")
+            time.sleep(1)
+        elif op.isdigit() and orders and 1 <= int(op) <= len(orders):
+            selected_order = orders[int(op) - 1]
+            order_detail_menu(order_svc, selected_order, cadete_svc)
 
 
 def sales_report_menu(report_svc):
@@ -1046,10 +1208,11 @@ def sales_report_menu(report_svc):
         if not detail_list:
             print("No hay ventas para mostrar en esta lista.")
         else:
-            print(f"{'ID':<5} {'Cliente':<25} {'Monto':<10}")
-            print("-" * 45)
+            print(f"{'ID':<5} {'Ord':<5} {'Cliente':<23} {'Monto':<10}")
+            print("-" * 48)
             for o in detail_list:
-                print(f"{o.id:<5} {o.customer[:25]:<25} ${o.total:<10}")
+                ord_num = f"O#{o.order_number}" if o.order_number else "-"
+                print(f"{o.id:<5} {ord_num:<5} {o.customer[:23]:<23} ${o.total:<10}")
 
         input("\nPresione Enter para volver al reporte...")
 
@@ -1284,10 +1447,11 @@ def edit_customer_submenu(customer_svc, zone_svc, customer):
             else:
                 clear_screen()
                 print(f"\n--- HISTORIAL DE PEDIDOS: {customer.name} ---")
-                print(f"{'ID':<5} {'Fecha':<20} {'Total':<10}")
-                print("-" * 40)
+                print(f"{'ID':<5} {'Ord':<5} {'Fecha':<20} {'Total':<10}")
+                print("-" * 45)
                 for o in orders:
-                    print(f"{o.id:<5} {o.date:<20} ${o.total:<10}")
+                    ord_num = f"O#{o.order_number}" if o.order_number else "-"
+                    print(f"{o.id:<5} {ord_num:<5} {o.date:<20} ${o.total:<10}")
                 print("-" * 40)
 
                 sel = input("\nIngrese ID de pedido para ver detalle (Enter para volver): ").strip()

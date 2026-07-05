@@ -69,6 +69,7 @@ class Order:
     items: List[OrderItem] = field(default_factory=list)
     total: int = 0
     id: Optional[int] = None
+    order_number: Optional[int] = None
     date: str = ""
     phone: str = ""
     address: str = ""

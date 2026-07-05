@@ -80,7 +80,8 @@ class Database:
                     total INTEGER NOT NULL,
                     zone_id INTEGER,
                     zone_name TEXT DEFAULT '',
-                    customer_id INTEGER
+                    customer_id INTEGER,
+                    order_number INTEGER
                 );
 
                 CREATE TABLE IF NOT EXISTS order_items (
@@ -107,6 +108,7 @@ class Database:
                 "ALTER TABLE orders ADD COLUMN zone_id INTEGER",
                 "ALTER TABLE orders ADD COLUMN zone_name TEXT DEFAULT ''",
                 "ALTER TABLE orders ADD COLUMN customer_id INTEGER",
+                "ALTER TABLE orders ADD COLUMN order_number INTEGER",
             ]:
                 try:
                     conn.execute(col_sql)
@@ -219,21 +221,36 @@ class Database:
     # PEDIDOS
     # =========================================================
 
-    def add_order(self, order: Order) -> int:
-        """Inserta un pedido con sus ítems de forma atómica (transacción)."""
+    def add_order(self, order: Order):
+        """Inserta un pedido con sus ítems de forma atómica (transacción).
+        Retorna una tupla (order_id, order_number)."""
         conn = self._get_connection()
         try:
+            # Calcular order_number: se reinicia cada jueves
+            today = datetime.date.today()
+            # weekday(): lunes=0 ... jueves=3 ... domingo=6
+            days_since_thursday = (today.weekday() - 3) % 7
+            last_thursday = today - datetime.timedelta(days=days_since_thursday)
+            last_thursday_str = last_thursday.strftime("%Y-%m-%d")
+
+            count = conn.execute(
+                "SELECT COUNT(*) FROM orders WHERE date >= ?",
+                (last_thursday_str,),
+            ).fetchone()[0]
+            order_number = count + 1
+
             cursor = conn.execute(
                 """INSERT INTO orders 
                    (date, customer, phone, address, observation,
                     delivery_type, delivery_fee, cadete, payment_method, total,
-                    zone_id, zone_name, customer_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    zone_id, zone_name, customer_id, order_number)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     order.date, order.customer, order.phone, order.address,
                     order.observation, order.delivery_type, order.delivery_fee,
                     order.cadete, order.payment_method, order.total,
                     order.zone_id, order.zone_name, order.customer_id,
+                    order_number,
                 ),
             )
             order_id = cursor.lastrowid
@@ -245,7 +262,7 @@ class Database:
                 )
 
             conn.commit()
-            return order_id
+            return (order_id, order_number)
         except Exception:
             conn.rollback()
             raise
@@ -303,6 +320,7 @@ class Database:
                         total=r["total"],
                         zone_id=r["zone_id"], zone_name=r["zone_name"] or "",
                         customer_id=r["customer_id"],
+                        order_number=r["order_number"],
                     )
                 )
 
@@ -333,6 +351,7 @@ class Database:
                 total=r["total"],
                 zone_id=r["zone_id"], zone_name=r["zone_name"] or "",
                 customer_id=r["customer_id"],
+                order_number=r["order_number"],
             )
         finally:
             conn.close()
@@ -369,6 +388,29 @@ class Database:
             conn.execute("DELETE FROM cadetes WHERE name=?", (name,))
             conn.commit()
             return True
+        finally:
+            conn.close()
+
+    def update_order_cadete(self, order_id: int, new_cadete: str):
+        """Actualiza el cadete asignado a un pedido."""
+        conn = self._get_connection()
+        try:
+            conn.execute("UPDATE orders SET cadete=? WHERE id=?", (new_cadete, order_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def update_order_delivery(self, order_id: int, delivery_type: str,
+                              delivery_fee: int, cadete: str, total: int):
+        """Actualiza tipo de entrega, costo de envío, cadete y total de un pedido."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                """UPDATE orders SET delivery_type=?, delivery_fee=?, cadete=?, total=?
+                   WHERE id=?""",
+                (delivery_type, delivery_fee, cadete, total, order_id),
+            )
+            conn.commit()
         finally:
             conn.close()
 

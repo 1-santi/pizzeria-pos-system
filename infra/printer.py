@@ -107,6 +107,7 @@ def print_kitchen_order(order_data):
     """Genera la comanda de cocina con texto GRANDE para los productos."""
     lines = []
     order_id = _get_attr(order_data, 'id')
+    order_number = _get_attr(order_data, 'order_number', '')
     delivery = _get_attr(order_data, 'delivery_type', 'N/A')
     customer = _get_attr(order_data, 'customer')
     obs = _get_attr(order_data, 'observation', '')
@@ -114,17 +115,19 @@ def print_kitchen_order(order_data):
 
     lines.append(center_text("=== COMANDA COCINA ==="))
 
-    # Zona al lado del número de pedido en fuente grande
+    # Zona al lado del número de orden del día en fuente grande
     BIG_WIDTH = 24  # Ancho efectivo con fuente grande (la mitad del normal)
+    display_num = f"O#{order_number}" if order_number else f"#{order_id}"
     if zone_name:
-        header_text = f"#{order_id} | {zone_name.upper()}"
+        header_text = f"{display_num} | {zone_name.upper()}"
     else:
-        header_text = f"PEDIDO #{order_id}"
+        header_text = f"PEDIDO {display_num}"
     lines.append(f"{BIG_FONT_ON}{header_text.center(BIG_WIDTH)}{BIG_FONT_OFF}")
 
     lines.append("=" * WIDTH)
 
-    lines.append(center_text(f"*** {delivery.upper()} ***"))
+    delivery_text = f"*** {delivery.upper()} ***"
+    lines.append(f"{BIG_FONT_ON}{delivery_text.center(BIG_WIDTH)}{BIG_FONT_OFF}")
     lines.append("")
 
     item_tuples = _get_items(order_data)
@@ -164,6 +167,7 @@ def print_control_ticket(order_data):
     """Genera el ticket de control para el cliente con detalle completo."""
     lines = []
     order_id = _get_attr(order_data, 'id')
+    order_number = _get_attr(order_data, 'order_number', '')
     customer = _get_attr(order_data, 'customer')
     phone = _get_attr(order_data, 'phone', '')
     address = _get_attr(order_data, 'address', '')
@@ -181,7 +185,10 @@ def print_control_ticket(order_data):
 
     dt = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
     lines.append(f"Fecha: {dt}")
-    lines.append(f"Orden #: {order_id}")
+    if order_number:
+        lines.append(f"T#{order_id} | O#{order_number}")
+    else:
+        lines.append(f"Ticket #: {order_id}")
     lines.append(f"Cliente: {customer}")
     if phone:
         lines.append(f"Tel: {phone}")
@@ -277,6 +284,41 @@ def print_menu_ticket(products):
     raw_content = text_content + CUT_COMMAND
 
     filename = "menu_productos_machete.txt"
+    filepath = os.path.join(TICKETS_DIR, filename)
+
+    process_output(filepath, text_content, raw_content)
+    return filepath
+
+
+def print_liquidation(cadete_name, date_str, summary, orders):
+    """Genera ticket de liquidación para un cadete."""
+    lines = []
+    lines.append(center_text("=== LIQUIDACION CADETE ==="))
+    lines.append(center_text(BUSINESS_NAME))
+    lines.append("=" * WIDTH)
+    lines.append(f"Cadete: {cadete_name}")
+    lines.append(f"Fecha: {date_str}")
+    lines.append("-" * WIDTH)
+
+    lines.append(f"{'O#':<4} {'Cliente':<26} {'Envio':<10}")
+    lines.append("-" * WIDTH)
+    for o in orders:
+        ord_num = f"{o.order_number}" if o.order_number else str(o.id)
+        lines.append(f"{ord_num:<4} {o.customer[:26]:<26} ${o.delivery_fee}")
+
+    lines.append("-" * WIDTH)
+    lines.append(f"Envios: {summary['envios']}")
+    lines.append(f"Comision: ${summary['comision']}")
+    lines.append(f"Base: ${summary['base']}")
+    lines.append("=" * WIDTH)
+    lines.append(center_text(f"TOTAL A PAGAR: ${summary['total']}"))
+    lines.append("=" * WIDTH)
+
+    text_content = normalize_text("\n".join(lines))
+    raw_content = text_content + CUT_COMMAND
+
+    safe_name = sanitize_filename(cadete_name)
+    filename = f"liquidacion_{safe_name}_{date_str}.txt"
     filepath = os.path.join(TICKETS_DIR, filename)
 
     process_output(filepath, text_content, raw_content)

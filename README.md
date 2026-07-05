@@ -383,6 +383,7 @@ El sistema utiliza **SQLite** como base de datos. El archivo `data/pizzeria.db` 
 | `zone_id` | INTEGER (FK) | Zona del pedido (`zones.id`, opcional) |
 | `zone_name` | TEXT | Nombre de la zona al momento del pedido |
 | `customer_id` | INTEGER (FK) | Referencia al cliente (`customers.id`, opcional) |
+| `order_number` | INTEGER | Número de orden del día (secuencial corto, se reinicia cada jueves) |
 
 ### Tabla `order_items` — Detalle de cada pedido
 
@@ -461,6 +462,7 @@ erDiagram
         int zone_id FK
         text zone_name
         int customer_id FK
+        int order_number
     }
 
     ORDER_ITEMS {

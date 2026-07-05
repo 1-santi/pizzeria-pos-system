@@ -91,9 +91,10 @@ class ReportService:
         report_lines.append("\n" + printer.center_text("Listado de Ventas Online:"))
 
         if summary['online_orders']:
-            report_lines.append(f"{'ID':<5} {'Cliente':<25} {'Monto'}")
+            report_lines.append(f"{'ID':<5} {'Ord':<5} {'Cliente':<23} {'Monto'}")
             for o in summary['online_orders']:
-                report_lines.append(f"{o.id:<5} {o.customer[:25]:<25} ${o.total}")
+                ord_num = f"O#{o.order_number}" if o.order_number else "-"
+                report_lines.append(f"{o.id:<5} {ord_num:<5} {o.customer[:23]:<23} ${o.total}")
         else:
             report_lines.append("No hay ventas online.")
 

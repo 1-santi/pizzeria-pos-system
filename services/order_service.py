@@ -30,7 +30,7 @@ class OrderService:
             customer_id=customer_id,
         )
 
-        order.id = self.db.add_order(order)
+        order.id, order.order_number = self.db.add_order(order)
         return order
 
     def print_order(self, order: Order):
@@ -42,4 +42,20 @@ class OrderService:
         return self.db.get_orders(**filters)
 
     def get_order_by_id(self, order_id: int):
+        return self.db.get_order_by_id(order_id)
+
+    def change_cadete(self, order_id: int, new_cadete: str):
+        """Cambia el cadete de un pedido y retorna el pedido actualizado."""
+        self.db.update_order_cadete(order_id, new_cadete)
+        return self.db.get_order_by_id(order_id)
+
+    def change_delivery_type(self, order_id: int, new_delivery_type: str,
+                             new_delivery_fee: int, new_cadete: str):
+        """Cambia tipo de entrega, recalculando el total."""
+        order = self.db.get_order_by_id(order_id)
+        items_total = sum(item.price for item in order.items)
+        new_total = items_total + new_delivery_fee
+        self.db.update_order_delivery(
+            order_id, new_delivery_type, new_delivery_fee, new_cadete, new_total
+        )
         return self.db.get_order_by_id(order_id)
